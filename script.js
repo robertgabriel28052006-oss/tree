@@ -1,10 +1,10 @@
 // ------------------------------------------------------------------
 // 1. IMPORTURI FIREBASE
 // ------------------------------------------------------------------
+import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, doc, setDoc, onSnapshot, query, orderBy, where, runTransaction, writeBatch, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
 // ------------------------------------------------------------------
 // 2. CONFIGURARE
 // ------------------------------------------------------------------
@@ -19,6 +19,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const analytics = getAnalytics(app);
 let auth = null;
 try {
     auth = getAuth(app);
@@ -118,7 +119,7 @@ const logic = {
     },
 
     canUserBook(userName) {
-        const limit = 2; 
+        const limit = 4; 
         const today = new Date().toISOString().split('T')[0];
         const userBookings = localBookings.filter(b => 
             b.userName.toLowerCase() === userName.toLowerCase() && b.date >= today
@@ -433,18 +434,31 @@ const ui = {
             deleteId = null;
         };
 
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if(confirmDeleteBtn) confirmDeleteBtn.onclick = async () => {
             if (deleteId) {
                 try {
+                    // 1. Găsim rezervarea local pentru a-i afla detaliile
+                    const booking = [...localBookings, ...historyBookings].find(b => b.id === deleteId);
+                    
+                    if (booking) {
+                        // 2. Ștergem Lock-ul (eliberăm slotul în calendar)
+                        const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
+                        await deleteDoc(doc(db, "slots_lock", slotID));
+                    }
+
+                    // 3. Ștergem Rezervarea
                     await deleteDoc(doc(db, "rezervari", deleteId));
+                    
                     localBookings = localBookings.filter(b => b.id !== deleteId);
                     historyBookings = historyBookings.filter(b => b.id !== deleteId);
-                    utils.showToast('Rezervare ștearsă.');
+                    
+                    utils.showToast('Rezervare și slot deblocate!');
                     this.renderAdminDashboard();
+                    this.renderAll(); 
                 } catch (e) {
-                    console.error(e);
-                    utils.showToast('Eroare la ștergere', 'error');
+                    console.error("Eroare la ștergere:", e);
+                    utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
                 }
                 document.getElementById('modalOverlay').style.display = 'none';
                 document.getElementById('confirmModal').style.display = 'none';
@@ -586,6 +600,11 @@ const ui = {
             // Salvare locală (Ține-mă minte)
             localStorage.setItem('studentName', userName);
             localStorage.setItem('studentPhone', cleanPhone);
+
+            logEvent(analytics, 'rezervare_noua', {
+                masina: machine,
+                durata: duration
+            });
 
             utils.showToast('Rezervare salvată cu succes!');
             e.target.reset(); 
@@ -826,3 +845,6 @@ const ui = {
 
 window.app = ui; 
 document.addEventListener('DOMContentLoaded', () => ui.init());
+
+
+
