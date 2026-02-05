@@ -85,6 +85,15 @@
 
             <aside class="sidebar">
 
+                <section class="card" id="liveStatusCard" style="border-left: 4px solid var(--success);">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-tower-broadcast"></i> Status Live</h2>
+                    </div>
+                    <div id="liveStatusContainer" class="live-status-list">
+                        <div class="live-item">Se încarcă...</div>
+                    </div>
+                </section>
+
                 <section class="card booking-card">
 
                     <div class="card-header">
@@ -174,7 +183,7 @@
                                 <label for="duration">Durată</label>
 
                                 <select id="duration" required>
-                                    
+
                                     <option value="30">30 min</option>
 
                                     <option value="60">60 min</option>
@@ -223,7 +232,7 @@
 
                 </section>
 
-                
+
 
                 <section class="card">
 
@@ -265,7 +274,7 @@
 
         </main>
 
-        
+
 
         <footer class="app-footer">
 
@@ -338,7 +347,7 @@
 
             </div>
 
-            
+
 
             <div id="adminContent" style="display: none;" class="admin-dashboard">
                 <div class="dashboard-header">
@@ -403,7 +412,7 @@
                     <h3 id="listTitle">Rezervări Active</h3>
                     <div class="list-badge" id="listBadgeCount">0</div>
                 </div>
-                
+
                 <div id="adminBookingsList" class="admin-bookings-list">
                     <!-- Content injected by JS -->
                 </div>
