@@ -71,6 +71,20 @@ body.dark-mode .btn-ghost:hover { background: #334155; }
 .btn-icon-only:hover { color: var(--primary); border-color: var(--primary); background: #eff6ff; }
 body.dark-mode .btn-icon-only:hover { background: #1e293b; border-color: var(--primary); }
 
+/* Credit Tag */
+.credit-tag {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--primary);
+    opacity: 0.8;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+}
+body.dark-mode .credit-tag {
+    color: #94a3b8; /* Muted text in dark mode */
+}
+
 /* Layout */
 .main-layout { display: grid; grid-template-columns: 340px 1fr; gap: 25px; align-items: start; }
 .sidebar { display: flex; flex-direction: column; gap: 20px; }
@@ -451,9 +465,11 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
+    flex-wrap: wrap; /* Responsive wrapping */
 }
 .search-wrapper {
     flex: 1;
+    min-width: 200px; /* Ensure input is usable on mobile */
     position: relative;
     background: #1e293b;
     border-radius: 8px;
@@ -573,6 +589,36 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     color: white;
 }
 
+/* Full Width Logout Button */
+.btn-logout-full {
+    width: 100%;
+    margin-top: 25px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.btn-logout-full:hover {
+    background: #ef4444;
+    color: white;
+}
+body.dark-mode .btn-logout-full {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+body.dark-mode .btn-logout-full:hover {
+    background: #ef4444;
+    color: white;
+}
+
 /* CONFIRM MODAL DARK MODE (When Admin) */
 body.admin-mode #confirmModal {
     background: #1e293b;
@@ -598,8 +644,18 @@ body.admin-mode #confirmModal p {
         max-width: 100%;
         border-radius: 0;
         padding: 20px;
+        overflow-y: auto; /* Ensure full modal scrolls */
     }
     .admin-bookings-list {
-        max-height: calc(100vh - 350px); /* Fill remaining space */
+        max-height: none; /* Disable internal scroll on mobile for better feel */
+        overflow: visible;
+    }
+    /* Fix date input width on mobile */
+    .filter-wrapper input[type="date"] {
+        width: 100%;
+    }
+    .filter-wrapper {
+        width: 100%;
+        flex: 1 1 100%;
     }
 }
