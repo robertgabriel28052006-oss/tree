@@ -618,7 +618,7 @@ const ui = {
                 transaction.set(newBookingRef, { 
                     userName, 
                     phoneNumber: cleanPhone, 
-                    pin: pin,
+                    code: pin,
                     machineType: machine, 
                     date: this.currentDate, 
                     startTime: start, 
@@ -776,7 +776,8 @@ const ui = {
         document.getElementById('phoneModal').style.display = 'block'; 
     },
 
-    requestDelete() {
+    requestDelete(id) {
+        if (id) deleteId = id; // Update ID if provided (for My Bookings flow)
         document.getElementById('phoneModal').style.display = 'none';
         document.getElementById('deletePinModal').style.display = 'block';
         const input = document.getElementById('deletePinInput');
@@ -811,12 +812,12 @@ const ui = {
              return;
         }
 
-        if (!booking.pin) {
+        if (!booking.code) {
              utils.showToast("Rezervare veche fără PIN. Doar admin o poate șterge.", "error");
              return;
         }
 
-        if (booking.pin === enteredPin) {
+        if (booking.code === enteredPin) {
             await this.performDelete(deleteId);
             document.getElementById('deletePinModal').style.display = 'none';
         } else {
@@ -837,13 +838,20 @@ const ui = {
         try {
             const booking = [...localBookings, ...historyBookings].find(b => b.id === id);
             
+            // 1. Try to delete the lock (Best Effort)
             if (booking) {
                 const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
-                await deleteDoc(doc(db, "slots_lock", slotID));
+                try {
+                    await deleteDoc(doc(db, "slots_lock", slotID));
+                } catch (lockError) {
+                    console.warn("Could not delete lock (likely permission issue), continuing:", lockError);
+                }
             }
 
+            // 2. Try to delete the reservation
             await deleteDoc(doc(db, "rezervari", id));
             
+            // Update UI on success
             localBookings = localBookings.filter(b => b.id !== id);
             historyBookings = historyBookings.filter(b => b.id !== id);
             
@@ -854,7 +862,11 @@ const ui = {
             document.getElementById('deletePinModal').style.display = 'none';
         } catch (e) {
             console.error("Eroare la ștergere:", e);
-            utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
+            if (e.code === 'permission-denied') {
+                utils.showToast('Eroare: Nu ai permisiunea de a șterge. Contactează un admin.', 'error');
+            } else {
+                utils.showToast('Eroare server: ' + e.message, 'error');
+            }
         } finally {
             if(btnUser) btnUser.disabled = false;
             deleteId = null;
@@ -877,7 +889,7 @@ const ui = {
         container.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
              const endTime = utils.minsToTime(endMins);
-             return `<div class="booking-item"><div class="booking-info"><strong>${logic.machines[b.machineType]}</strong><span>${utils.formatDateRO(b.date)} • ${b.startTime} - ${endTime}</span></div><button class="btn-delete" onclick="window.app.confirmDelete('${b.id}')">Anulează</button></div>`;
+             return `<div class="booking-item"><div class="booking-info"><strong>${logic.machines[b.machineType]}</strong><span>${utils.formatDateRO(b.date)} • ${b.startTime} - ${endTime}</span></div><button class="btn-delete" onclick="window.app.requestDelete('${b.id}')">Anulează</button></div>`;
         }).join('') : '<div class="empty-state">Nu am găsit rezervări.</div>'; 
     },
 
