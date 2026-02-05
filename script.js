@@ -78,11 +78,18 @@ const utils = {
 const logic = {
     machines: { 'masina1': 'Mașină Spălat 1', 'masina2': 'Mașină Spălat 2', 'uscator1': 'Uscător 1', 'uscator2': 'Uscător 2' },
     
+    _cachedSlots: null,
     generateSlots(startHour = 0, endHour = 24) {
+        if (startHour === 0 && endHour === 24 && this._cachedSlots) {
+            return this._cachedSlots;
+        }
         const slots = [];
         for (let h = startHour; h < endHour; h++) { 
             slots.push(`${h.toString().padStart(2, '0')}:00`); 
             slots.push(`${h.toString().padStart(2, '0')}:30`); 
+        }
+        if (startHour === 0 && endHour === 24) {
+            this._cachedSlots = slots;
         }
         return slots;
     },
