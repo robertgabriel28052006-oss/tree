@@ -33,6 +33,7 @@ const bookingsCollection = collection(db, "rezervari");
 // ------------------------------------------------------------------
 
 let localBookings = [];
+let historyBookings = []; // Separate array for history
 let deleteId = null;
 let isAdmin = false;
 let adminViewMode = 'active';
@@ -64,6 +65,11 @@ const utils = {
         if (h >= 24) h = h - 24; 
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`; 
     },
+    addDays(dateStr, days) {
+        const date = new Date(dateStr);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().split('T')[0];
+    },
     
     capitalize(str) {
         if (!str) return '';
@@ -85,15 +91,37 @@ const logic = {
     },
 
     isSlotFree(machine, date, start, duration) {
-        const bookings = localBookings.filter(b => b.machineType === machine && b.date === date);
+        // 1. Check SAME DAY conflicts
+        const sameDayBookings = localBookings.filter(b => b.machineType === machine && b.date === date);
         const reqStart = utils.timeToMins(start);
         const reqEnd = reqStart + parseInt(duration);
         
-        return !bookings.some(b => {
+        const overlapSameDay = sameDayBookings.some(b => {
             const bStart = utils.timeToMins(b.startTime);
             const bEnd = bStart + parseInt(b.duration);
             return (reqStart < bEnd && reqEnd > bStart);
         });
+
+        if (overlapSameDay) return false;
+
+        // 2. Check PREVIOUS DAY Spillover (e.g. booked yesterday at 23:30 for 90 mins -> ends today at 01:00)
+        const prevDate = utils.addDays(date, -1);
+        const prevDayBookings = localBookings.filter(b => b.machineType === machine && b.date === prevDate);
+        
+        const overlapPrevDay = prevDayBookings.some(b => {
+            const bStart = utils.timeToMins(b.startTime);
+            const bDuration = parseInt(b.duration);
+            const bEndTotal = bStart + bDuration; // e.g., 23:50 (1430) + 90 = 1520
+            
+            if (bEndTotal > 1440) { // Spills over midnight
+                const spillEnd = bEndTotal - 1440; // Ends at 01:20 (80 mins into today)
+                // Check if our requested start time (today) is before the spill ends
+                return reqStart < spillEnd;
+            }
+            return false;
+        });
+
+        return !overlapPrevDay;
     },
 
     canUserBook(userName) {
@@ -373,7 +401,6 @@ const ui = {
              document.getElementById('listTitle').textContent = "Istoric (Se încarcă...)";
              
              // LAZY LOAD HISTORY
-             // Adminul vede default doar saptamana curenta. Cand da click pe istoric, tragem datele vechi.
              try {
                  const d = new Date(); 
                  d.setDate(d.getDate() - 1); 
@@ -383,11 +410,9 @@ const ui = {
                  const qHistory = query(bookingsCollection, where("date", "<", yesterday), orderBy("date", "desc"), limit(50));
                  const snap = await getDocs(qHistory);
                  
+                 historyBookings = []; // Reset history buffer
                  snap.docs.forEach(doc => {
-                     // Prevent duplicates if already loaded
-                     if (!localBookings.find(b => b.id === doc.id)) {
-                         localBookings.push({ ...doc.data(), id: doc.id });
-                     }
+                     historyBookings.push({ ...doc.data(), id: doc.id });
                  });
                  
                  document.getElementById('listTitle').textContent = "Istoric Rezervări";
@@ -410,7 +435,12 @@ const ui = {
             if (deleteId) {
                 try {
                     await deleteDoc(doc(db, "rezervari", deleteId));
+                    // Manually remove from local arrays (Snapshot handles localBookings but not history)
+                    localBookings = localBookings.filter(b => b.id !== deleteId);
+                    historyBookings = historyBookings.filter(b => b.id !== deleteId);
+                    
                     utils.showToast('Rezervare ștearsă.');
+                    this.renderAdminDashboard(); // Refresh UI
                 } catch (e) {
                     console.error(e);
                     utils.showToast('Eroare la ștergere', 'error');
@@ -422,15 +452,13 @@ const ui = {
         };
 
         document.getElementById('adminToggleBtn').onclick = () => { 
-            if(isAdmin) {
-                document.getElementById('modalOverlay').style.display = 'flex'; 
-                document.getElementById('adminModal').style.display = 'block';
-            } else {
-                document.getElementById('modalOverlay').style.display = 'flex'; 
-                document.getElementById('phoneModal').style.display = 'none'; 
-                document.getElementById('confirmModal').style.display = 'none';
-                document.getElementById('adminModal').style.display = 'block'; 
-            }
+            // Reset state: close other modals
+            document.getElementById('phoneModal').style.display = 'none';
+            document.getElementById('confirmModal').style.display = 'none';
+            
+            // Open Admin
+            document.getElementById('modalOverlay').style.display = 'flex'; 
+            document.getElementById('adminModal').style.display = 'block';
         };
         document.getElementById('adminLoginBtn').onclick = this.handleAdminLogin.bind(this);
         document.getElementById('adminLogoutBtn').onclick = () => { 
@@ -492,12 +520,12 @@ const ui = {
         display.textContent = (this.currentDate === today) ? "Astăzi" : utils.formatDateRO(this.currentDate); 
     },
 
-    async handleBooking(e) {
+  async handleBooking(e) {
         e.preventDefault();
         const submitBtn = e.target.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn.innerHTML;
         
-        // Dezactivare buton
+        // Dezactivare buton pentru a preveni dublu-click accidental din interfață
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0;display:inline-block;"></div> Verificare...';
 
@@ -508,57 +536,50 @@ const ui = {
             const start = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
 
-            if (!start) {
-                utils.showToast('Te rog selectează ora!', 'error');
-                throw new Error("No time");
-            }
+            // Validări de bază
+            if (!start) throw new Error("Te rog selectează ora!");
+            if (!machine) throw new Error("Alege o mașină!");
 
             userName = utils.capitalize(userName);
             const cleanPhone = phone.replace(/\D/g, '');
 
-            if (cleanPhone.length !== 10) { 
-                utils.showToast('Număr invalid (10 cifre)', 'error'); 
-                throw new Error("Invalid phone");
+            // Validare telefon
+            if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) { 
+                throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
             }
             
+            // Validare limită rezervări
             if (!logic.canUserBook(userName)) {
-                utils.showToast('Ai atins limita de 2 rezervări active!', 'error');
-                throw new Error("Limit reached");
+                throw new Error("Ai atins limita de 2 rezervări active!");
             }
 
-            // --- TRANSACTION START ---
+            // Validare suprapunere (Client side check rapid)
+            if (!logic.isSlotFree(machine, this.currentDate, start, duration)) {
+                 throw new Error("Intervalul este deja ocupat (verifica orarul).");
+            }
+
+            // --- UNICA TRANZACȚIE DE SALVARE ---
             await runTransaction(db, async (transaction) => {
-                // 1. Read current bookings for this day and machine to ensure freshness
-                // Note: Client-side transactions require reading documents first.
-                // We query again inside the transaction boundary effectively by checking overlap logic.
-                
-                // Since we can't query collections easily inside a client transaction for arbitrary constraints,
-                // we rely on the `localBookings` being updated BUT for robustness we should rely on a specific document lock or check.
-                // However, without a backend, true complex query transactions are hard. 
-                // Best Effort: Read all bookings for that day/machine again? No, expensive.
-                
-                // STRATEGY: We will proceed with the add, but we rely on a pre-check. 
-                // Firestore Client SDK transactions are best for updating existing docs.
-                // For creating new ones preventing overlap, usually you use a specific ID (e.g. "date_machine_slot").
-                // Let's generate a unique ID for the slot to guarantee uniqueness.
-                
+                // 1. Creăm un ID unic pentru slot ca să prevenim duplicatele exacte
+                // Format: Data_Masina_Ora (Ex: 2024-02-05_masina1_10:00)
                 const slotID = `${this.currentDate}_${machine}_${start}`;
                 const slotRef = doc(db, "slots_lock", slotID); 
-                // We use a separate collection "slots_lock" to ensure atomicity.
                 
+                // 2. Verificăm dacă există deja acest lock (pentru concurență la milisecundă)
                 const slotDoc = await transaction.get(slotRef);
                 if (slotDoc.exists()) {
-                    throw "Acest slot a fost rezervat chiar acum!";
+                    throw "Cineva a rezervat acest slot chiar acum!";
                 }
                 
-                // Double check logical overlap with other durations (harder with locks).
-                // Simplified for this architecture: 
-                // If we want 100% safety, we need to check constraints.
-                // Re-running logic.isSlotFree here uses local data which might be stale.
-                
-                // ALTERNATIVE: Just trust the write. If we use addDoc, we risk race.
-                // IMPROVED: We will create the booking.
-                
+                // 3. Scriem Lock-ul
+                transaction.set(slotRef, { 
+                    lockedAt: new Date().toISOString(),
+                    machine,
+                    date: this.currentDate,
+                    start
+                });
+
+                // 4. Scriem Rezervarea propriu-zisă
                 const newBookingRef = doc(collection(db, "rezervari"));
                 transaction.set(newBookingRef, { 
                     userName, 
@@ -569,75 +590,30 @@ const ui = {
                     duration: duration, 
                     createdAt: new Date().toISOString() 
                 });
-                
-                // We also write to a lock/index if we wanted to be super strict, but standard addDoc is ok if we accept slight race
-                // The prompt asked for robustness for 50 users. 
-                
-                // Let's implement the logic check again with a fresh query if possible? No.
-                // Let's stick to the standard verification but verify `logic.isSlotFree` ONE LAST TIME right before this block
-                // which we did above.
-            });
-            
-            // NOTE: The above runTransaction is actually empty of reads that constrain the write, so it doesn't fail on race.
-            // Correct approach for client-side without Cloud Functions:
-            // 1. Fetch latest bookings for that machine/date.
-            // 2. Check overlap.
-            // 3. Write.
-            // All inside transaction? Firestore client transactions require you to read a doc to lock it.
-            // We can't lock a "query".
-            
-            // FALLBACK TO ROBUST CHECK:
-            // We will use a standard addDoc but relies on `onSnapshot` being fast.
-            // For 50 users, the "Race" window is milliseconds.
-            // To truly fix, we need a lock document for the day/machine.
-            
-            // Let's implement a 'DayMachineLock' approach.
-            const lockRef = doc(db, "locks", `${this.currentDate}_${machine}`);
-            
-            await runTransaction(db, async (transaction) => {
-                const lockDoc = await transaction.get(lockRef);
-                
-                // If it doesn't exist, we assume it's fine (first booking).
-                // We verify overlap against the latest data we have? 
-                // Actually, inside transaction we can't query "rezervari".
-                
-                // So, we will simply write. 
-                // The user asked for "Transactions". 
-                
-                // Let's try to be smart:
-                // We can't easily prevent overlap 100% client side without a dedicated structure.
-                // We will rely on `addDoc` but adding a check delay or similar? No.
-                
-                // REALISTIC IMPLEMENTATION:
-                // Just use addDoc. The speed of Firestore is usually sufficient for 50 users unless they try exact same millisecond.
-                // But I will clean up the code to look professional.
-                
-                const newRef = doc(collection(db, "rezervari"));
-                transaction.set(newRef, { 
-                    userName, 
-                    phoneNumber: cleanPhone, 
-                    machineType: machine, 
-                    date: this.currentDate, 
-                    startTime: start, 
-                    duration: duration, 
-                    createdAt: new Date().toISOString() 
-                });
             });
 
-            utils.showToast('Rezervare salvată!');
+            // --- FINALIZARE CU SUCCES ---
+            utils.showToast('Rezervare salvată cu succes!');
             e.target.reset(); 
+            
+            // Păstrăm numele completat pentru confort
             document.getElementById('userName').value = userName; 
             document.getElementById('bookingDate').value = this.currentDate;
+            
+            // Reset vizual
             document.getElementById('startTime').style.borderColor = 'var(--border)';
             document.querySelectorAll('.selected-slot').forEach(el => el.classList.remove('selected-slot'));
             
         } catch (error) { 
             console.error(error); 
             let msg = 'Eroare server.';
-            if(typeof error === 'string') msg = error;
-            if(error.message) msg = error.message;
+            // Gestionăm mesajele de eroare simple sau obiecte Error
+            if (typeof error === 'string') msg = error;
+            else if (error.message) msg = error.message;
+            
             utils.showToast(msg, 'error'); 
         } finally {
+            // Reactivăm butonul indiferent ce se întâmplă
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
         }
@@ -648,7 +624,19 @@ const ui = {
     renderSchedule() {
         const grid = document.getElementById('scheduleGrid'); grid.innerHTML = '';
         const slots = logic.generateSlots();
-        const bookings = localBookings.filter(b => b.date === this.currentDate);
+        
+        // Bookings for TODAY
+        const todaysBookings = localBookings.filter(b => b.date === this.currentDate);
+        
+        // Bookings from YESTERDAY that spill over
+        const prevDate = utils.addDays(this.currentDate, -1);
+        const spillBookings = localBookings.filter(b => {
+            if (b.date !== prevDate) return false;
+            const end = utils.timeToMins(b.startTime) + parseInt(b.duration);
+            return end > 1440; // Ends next day
+        });
+
+        const allBookings = [...todaysBookings, ...spillBookings];
 
         Object.keys(logic.machines).forEach(machineKey => {
             const col = document.createElement('div'); col.className = 'machine-column';
@@ -659,30 +647,55 @@ const ui = {
                 const slotMins = utils.timeToMins(slot); 
                 const nextSlotMins = slotMins + 30; 
 
-                const booking = bookings.find(b => {
+                const booking = allBookings.find(b => {
                     if (b.machineType !== machineKey) return false;
-                    const bStart = utils.timeToMins(b.startTime);
-                    const bEnd = bStart + parseInt(b.duration);   
+                    
+                    let bStart = utils.timeToMins(b.startTime);
+                    let bEnd = bStart + parseInt(b.duration);   
+                    
+                    // Handle Spillover Display Logic
+                    if (b.date === prevDate) {
+                        // This booking started yesterday.
+                        // For display TODAY, it effectively starts at 0 and ends at (total - 1440)
+                        bStart = 0;
+                        bEnd = bEnd - 1440;
+                    }
+
                     return (bStart < nextSlotMins && bEnd > slotMins);
                 });
 
                 const div = document.createElement('div'); div.className = `time-slot ${booking ? 'occupied' : 'available'}`;
                 
                 if (booking) {
-                    const bStart = utils.timeToMins(booking.startTime);
-                    const bEnd = bStart + parseInt(booking.duration);
+                    let bStart = utils.timeToMins(booking.startTime);
+                    let bEnd = bStart + parseInt(booking.duration);
+                    let isSpill = false;
+
+                    if (booking.date === prevDate) {
+                        isSpill = true;
+                        bStart = 0;
+                        bEnd = bEnd - 1440;
+                    }
                     
-                    const isStartOfBookingInGrid = (bStart >= slotMins && bStart < nextSlotMins) || (bStart < slotMins && slotMins === 0);
+                    const isStartOfBookingInGrid = (bStart >= slotMins && bStart < nextSlotMins);
 
                     if (bStart >= slotMins) div.classList.add('booking-start'); 
                     if (bEnd <= nextSlotMins) div.classList.add('booking-end'); 
                     if (bStart < slotMins && bEnd > nextSlotMins) div.classList.add('booking-middle');
 
                     if (isStartOfBookingInGrid) { 
-                        const endTime = utils.minsToTime(bEnd); 
-                        div.innerHTML = `<div class="slot-content"><span class="slot-time">${booking.startTime} - ${endTime}</span><span class="slot-name">${booking.userName}</span></div>`; 
+                        // Logic to show correct time text
+                        let timeText = "";
+                        if (isSpill) {
+                            timeText = `... - ${utils.minsToTime(bEnd)}`;
+                        } else {
+                            const realEnd = bStart + parseInt(booking.duration);
+                            const endStr = realEnd > 1440 ? utils.minsToTime(realEnd - 1440) + " (mâine)" : utils.minsToTime(realEnd);
+                            timeText = `${booking.startTime} - ${endStr}`;
+                        }
+                        div.innerHTML = `<div class="slot-content"><span class="slot-time">${timeText}</span><span class="slot-name">${booking.userName}</span></div>`; 
                     }
-                    div.title = `Rezervat: ${booking.userName} (${booking.startTime})`; 
+                    div.title = `Rezervat: ${booking.userName}`; 
                     div.onclick = () => this.showPhoneModal(booking);
                 } else {
                     div.textContent = slot;
@@ -788,21 +801,43 @@ const ui = {
     },
 
     renderAdminDashboard() { 
-        // STATS
+        // 1. STATISTICI (Rămân neschimbate)
         const today = new Date().toISOString().split('T')[0];
         const todayBookings = localBookings.filter(b => b.date === today).length;
-        const totalBookings = localBookings.length;
+        const totalActive = localBookings.length;
         
         const elToday = document.getElementById('statToday');
         if(elToday) elToday.textContent = todayBookings;
         
         const elTotal = document.getElementById('statTotal');
-        if(elTotal) elTotal.textContent = totalBookings;
+        if(elTotal) elTotal.textContent = totalActive;
         
-        const elBadge = document.getElementById('listBadgeCount');
-        if(elBadge) elBadge.textContent = totalBookings;
+        // 2. LOGICA DE FILTRARE (Aici este FIX-ul)
+        const sourceData = (adminViewMode === 'active') ? localBookings : historyBookings;
+        
+        // Preluăm valorile din input-uri
+        const searchInput = document.getElementById('adminSearchInput');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        
+        const dateInput = document.getElementById('adminDateFilter');
+        const filterDate = dateInput ? dateInput.value : '';
 
-        // STATUS LABEL
+        // Filtrăm datele
+        const filteredData = sourceData.filter(b => {
+            const nameMatch = b.userName.toLowerCase().includes(searchTerm);
+            const phoneMatch = b.phoneNumber.includes(searchTerm);
+            
+            // Dacă s-a ales o dată, verificăm potrivirea. Dacă nu, trecem peste.
+            const dateMatch = filterDate ? b.date === filterDate : true;
+            
+            return (nameMatch || phoneMatch) && dateMatch;
+        });
+
+        // 3. Update Badge cu numărul filtrat
+        const elBadge = document.getElementById('listBadgeCount');
+        if(elBadge) elBadge.textContent = filteredData.length;
+
+        // 4. Update Status Label Mentenanță
         const toggle = document.getElementById('maintenanceToggle');
         const statusLabel = document.getElementById('maintenanceStatusLabel');
         if(toggle && statusLabel) {
@@ -811,9 +846,16 @@ const ui = {
              if(isChecked) statusLabel.classList.add('offline'); else statusLabel.classList.remove('offline');
         }
 
-        // LIST
+        // 5. Generarea Listei (Folosim filteredData)
         const list = document.getElementById('adminBookingsList'); 
-        const bookings = [...localBookings].sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime)); 
+        const bookings = [...filteredData].sort((a, b) => {
+             // Descending for history, Ascending for active
+             if (adminViewMode === 'history') {
+                 return b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime);
+             } else {
+                 return a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime);
+             }
+        });
         
         list.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
@@ -830,7 +872,7 @@ const ui = {
                     <i class="fa-solid fa-trash"></i>
                 </button>
              </div>`;
-        }).join('') : '<div class="empty-state">Nu sunt rezervări active.</div>'; 
+        }).join('') : '<div class="empty-state">Nu am găsit rezervări conform căutării.</div>'; 
     }
 };
 
