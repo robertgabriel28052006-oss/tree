@@ -178,6 +178,10 @@ const ui = {
         this.updateDateDisplay();
         this.startMidnightWatcher();
 
+        // Start Live Status Loop
+        this.updateMachineStatus();
+        setInterval(() => this.updateMachineStatus(), 60000);
+
         // Firebase Listeners (Optimized)
         const d = new Date(); 
         d.setDate(d.getDate() - 1); 
@@ -260,6 +264,39 @@ const ui = {
         }, 60000);
     },
 
+    updateMachineStatus() {
+        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+
+        Object.keys(logic.machines).forEach(machineKey => {
+            const statusEl = document.getElementById(`status-${machineKey}`);
+            if (!statusEl) return;
+
+            const activeBooking = localBookings.find(b => {
+                if (b.machineType !== machineKey) return false;
+                if (b.date !== today) return false;
+                
+                const startMins = utils.timeToMins(b.startTime);
+                const endMins = startMins + parseInt(b.duration);
+                
+                return currentMins >= startMins && currentMins < endMins;
+            });
+
+            if (activeBooking) {
+                const startMins = utils.timeToMins(activeBooking.startTime);
+                const endMins = startMins + parseInt(activeBooking.duration);
+                const remaining = endMins - currentMins;
+                
+                statusEl.textContent = `Ocupat (${remaining} min)`;
+                statusEl.className = 'live-status busy';
+            } else {
+                statusEl.textContent = 'Liber';
+                statusEl.className = 'live-status free';
+            }
+        });
+    },
+
     setupEventListeners() {
         document.getElementById('bookingForm').addEventListener('submit', this.handleBooking.bind(this));
         
@@ -313,7 +350,20 @@ const ui = {
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
             document.getElementById('adminModal').style.display = 'none';
+            document.getElementById('deletePinModal').style.display = 'none';
         });
+
+        // Delete handlers
+        const reqDelBtn = document.getElementById('requestDeleteBtn');
+        if (reqDelBtn) reqDelBtn.onclick = () => this.requestDelete();
+
+        const confirmPinBtn = document.getElementById('confirmPinDeleteBtn');
+        if (confirmPinBtn) confirmPinBtn.onclick = () => this.confirmPinDelete();
+
+        const cancelPinBtn = document.getElementById('cancelPinDeleteBtn');
+        if (cancelPinBtn) cancelPinBtn.onclick = () => {
+             document.getElementById('deletePinModal').style.display = 'none';
+        };
 
         // Maintenance Toggle
         document.getElementById('maintenanceToggle').onchange = async (e) => {
@@ -426,7 +476,7 @@ const ui = {
             };
         }
 
-        // Delete handlers
+        // Admin Cancel Delete
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         if(cancelDeleteBtn) cancelDeleteBtn.onclick = () => {
             document.getElementById('modalOverlay').style.display = 'none';
@@ -434,36 +484,10 @@ const ui = {
             deleteId = null;
         };
 
-const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        // Admin Confirm Delete
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if(confirmDeleteBtn) confirmDeleteBtn.onclick = async () => {
-            if (deleteId) {
-                try {
-                    // 1. Găsim rezervarea local pentru a-i afla detaliile
-                    const booking = [...localBookings, ...historyBookings].find(b => b.id === deleteId);
-                    
-                    if (booking) {
-                        // 2. Ștergem Lock-ul (eliberăm slotul în calendar)
-                        const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
-                        await deleteDoc(doc(db, "slots_lock", slotID));
-                    }
-
-                    // 3. Ștergem Rezervarea
-                    await deleteDoc(doc(db, "rezervari", deleteId));
-                    
-                    localBookings = localBookings.filter(b => b.id !== deleteId);
-                    historyBookings = historyBookings.filter(b => b.id !== deleteId);
-                    
-                    utils.showToast('Rezervare și slot deblocate!');
-                    this.renderAdminDashboard();
-                    this.renderAll(); 
-                } catch (e) {
-                    console.error("Eroare la ștergere:", e);
-                    utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
-                }
-                document.getElementById('modalOverlay').style.display = 'none';
-                document.getElementById('confirmModal').style.display = 'none';
-                deleteId = null;
-            }
+             await this.performDelete(deleteId);
         };
 
         document.getElementById('adminToggleBtn').onclick = () => { 
@@ -544,6 +568,7 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             // Definim variabilele LA ÎNCEPUT
             let userName = document.getElementById('userName').value.trim();
             const phone = document.getElementById('phoneNumber').value.trim();
+            const pin = document.getElementById('userPin').value.trim();
             const machine = document.getElementById('machineType').value;
             const start = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
@@ -558,6 +583,10 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
             if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) { 
                 throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
+            }
+
+            if (!pin || pin.length !== 4 || isNaN(pin)) {
+                throw new Error("PIN-ul trebuie să aibă exact 4 cifre.");
             }
             
             if (!logic.canUserBook(userName)) {
@@ -589,6 +618,7 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                 transaction.set(newBookingRef, { 
                     userName, 
                     phoneNumber: cleanPhone, 
+                    pin: pin,
                     machineType: machine, 
                     date: this.currentDate, 
                     startTime: start, 
@@ -627,7 +657,15 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         }
     },
 
-    renderAll() { this.renderSchedule(); this.renderMyBookings(); this.renderUpcoming(); if (document.getElementById('adminContent').style.display === 'block') { this.renderAdminDashboard(); } },
+    renderAll() { 
+        this.renderSchedule(); 
+        this.renderMyBookings(); 
+        this.renderUpcoming(); 
+        this.updateMachineStatus();
+        if (document.getElementById('adminContent').style.display === 'block') { 
+            this.renderAdminDashboard(); 
+        } 
+    },
 
     renderSchedule() {
         const grid = document.getElementById('scheduleGrid'); grid.innerHTML = '';
@@ -708,16 +746,119 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
     },
 
     showPhoneModal(booking) { 
+        deleteId = booking.id;
         document.getElementById('modalUserName').textContent = booking.userName; 
-        document.getElementById('modalPhoneNumber').textContent = booking.phoneNumber; 
-        document.getElementById('callPhoneBtn').href = `tel:${booking.phoneNumber}`; 
-        document.getElementById('copyPhoneBtn').onclick = () => { 
-            navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); }); 
-        }; 
+        
+        const phoneEl = document.getElementById('modalPhoneNumber');
+        const callBtn = document.getElementById('callPhoneBtn');
+        const copyBtn = document.getElementById('copyPhoneBtn');
+        
+        if (isAdmin) {
+            phoneEl.textContent = booking.phoneNumber; 
+            callBtn.style.display = 'inline-block';
+            copyBtn.style.display = 'inline-block';
+            callBtn.href = `tel:${booking.phoneNumber}`; 
+            copyBtn.onclick = () => { 
+                navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); }); 
+            };
+        } else {
+            const p = booking.phoneNumber;
+            const masked = (p.length >= 10) ? `${p.slice(0,4)}****${p.slice(-2)}` : '******';
+            phoneEl.textContent = masked;
+            callBtn.style.display = 'none';
+            copyBtn.style.display = 'none';
+        }
+
         document.getElementById('adminModal').style.display = 'none'; 
         document.getElementById('confirmModal').style.display = 'none';
+        document.getElementById('deletePinModal').style.display = 'none';
         document.getElementById('modalOverlay').style.display = 'flex'; 
         document.getElementById('phoneModal').style.display = 'block'; 
+    },
+
+    requestDelete() {
+        document.getElementById('phoneModal').style.display = 'none';
+        document.getElementById('deletePinModal').style.display = 'block';
+        const input = document.getElementById('deletePinInput');
+        input.value = '';
+        input.focus();
+    },
+
+    async confirmPinDelete() {
+        const input = document.getElementById('deletePinInput');
+        const enteredPin = input.value.trim();
+        
+        if (!enteredPin || enteredPin.length !== 4) {
+            utils.showToast("Introdu PIN-ul de 4 cifre.", "error");
+            return;
+        }
+
+        const booking = [...localBookings, ...historyBookings].find(b => b.id === deleteId);
+        if (!booking) {
+            utils.showToast("Rezervarea nu a fost găsită.", "error");
+            document.getElementById('modalOverlay').style.display = 'none';
+            return;
+        }
+
+        // Logic check:
+        // 1. If admin -> Bypass
+        // 2. If user has NO pin saved (legacy) -> Deny (Admin only)
+        // 3. If user has pin -> Check match
+
+        if (isAdmin) {
+             await this.performDelete(deleteId);
+             document.getElementById('deletePinModal').style.display = 'none';
+             return;
+        }
+
+        if (!booking.pin) {
+             utils.showToast("Rezervare veche fără PIN. Doar admin o poate șterge.", "error");
+             return;
+        }
+
+        if (booking.pin === enteredPin) {
+            await this.performDelete(deleteId);
+            document.getElementById('deletePinModal').style.display = 'none';
+        } else {
+            utils.showToast("PIN Incorect!", "error");
+            input.value = '';
+            input.style.borderColor = "var(--danger)";
+        }
+    },
+
+    async performDelete(id) {
+        if (!id) return;
+        
+        // Disable buttons if possible
+        const btnAdmin = document.querySelector('.btn-delete-vip'); // Rough selection
+        const btnUser = document.getElementById('confirmPinDeleteBtn');
+        if(btnUser) btnUser.disabled = true;
+
+        try {
+            const booking = [...localBookings, ...historyBookings].find(b => b.id === id);
+            
+            if (booking) {
+                const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
+                await deleteDoc(doc(db, "slots_lock", slotID));
+            }
+
+            await deleteDoc(doc(db, "rezervari", id));
+            
+            localBookings = localBookings.filter(b => b.id !== id);
+            historyBookings = historyBookings.filter(b => b.id !== id);
+            
+            utils.showToast('Rezervare ștearsă cu succes!');
+            this.renderAll(); 
+            document.getElementById('modalOverlay').style.display = 'none';
+            document.getElementById('confirmModal').style.display = 'none';
+            document.getElementById('deletePinModal').style.display = 'none';
+        } catch (e) {
+            console.error("Eroare la ștergere:", e);
+            utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
+        } finally {
+            if(btnUser) btnUser.disabled = false;
+            deleteId = null;
+        }
     },
 
     confirmDelete(id) {
@@ -845,6 +986,3 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
 window.app = ui; 
 document.addEventListener('DOMContentLoaded', () => ui.init());
-
-
-
