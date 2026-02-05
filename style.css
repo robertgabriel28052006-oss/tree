@@ -37,7 +37,7 @@ body.dark-mode .spinner { border-color: #334155; border-top-color: var(--primary
 /* ECRAN MENTENANTA */
 .maintenance-screen {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.98); 
+    background: rgba(255, 255, 255, 0.98);
     z-index: 2000; /* Sub modale (3000) */
     display: flex; justify-content: center; align-items: center; text-align: center;
     backdrop-filter: blur(5px);
@@ -102,8 +102,8 @@ form { padding: 20px; }
 label { font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block; }
 .input-wrapper { position: relative; display: flex; align-items: center; }
 .input-wrapper i { position: absolute; left: 12px; color: var(--text-muted); font-size: 0.9rem; }
-input, select { 
-    width: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--border); 
+input, select {
+    width: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--border);
     border-radius: 8px; font-size: 0.95rem; background: var(--card-bg); color: var(--text-main); transition: border 0.2s;
 }
 input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
@@ -223,17 +223,17 @@ body.dark-mode .btn-delete:hover { background: #991b1b; }
 .empty-state { padding: 25px; text-align: center; color: var(--text-muted); font-size: 0.9rem; font-style: italic; }
 
 /* MODALS */
-.modal-overlay { 
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 3000; /* Peste mentenanta */
-    justify-content: center; align-items: center; backdrop-filter: blur(3px); 
+    justify-content: center; align-items: center; backdrop-filter: blur(3px);
 }
 
 /* Stil general pentru modale */
-.modal-box { 
-    background: var(--card-bg); padding: 25px; border-radius: var(--radius); 
-    width: 90%; max-width: 360px; position: relative; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; 
+.modal-box {
+    background: var(--card-bg); padding: 25px; border-radius: var(--radius);
+    width: 90%; max-width: 360px; position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease;
 }
 
 /* FIX: Stil specific pentru ADMIN MODAL (SCROLL) */
@@ -242,7 +242,7 @@ body.dark-mode .btn-delete:hover { background: #991b1b; }
     width: 95%;
     max-height: 90vh; /* Nu depasi 90% din inaltimea ecranului */
     overflow-y: auto; /* Activeaza scroll vertical */
-    display: none; 
+    display: none;
 }
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -344,7 +344,7 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
-    width: 40px; 
+    width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
@@ -536,10 +536,10 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     width: 6px;
 }
 .admin-bookings-list::-webkit-scrollbar-track {
-    background: #1e293b; 
+    background: #1e293b;
 }
 .admin-bookings-list::-webkit-scrollbar-thumb {
-    background: #475569; 
+    background: #475569;
     border-radius: 3px;
 }
 
@@ -659,3 +659,26 @@ body.admin-mode #confirmModal p {
         flex: 1 1 100%;
     }
 }
+
+/* Live Status */
+.live-status-list { padding: 0; }
+.live-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+.live-item:last-child { border-bottom: none; }
+.live-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.live-badge.free { background: #dcfce7; color: #15803d; }
+.live-badge.busy { background: #fee2e2; color: #b91c1c; }
+body.dark-mode .live-badge.free { background: #064e3b; color: #86efac; }
+body.dark-mode .live-badge.busy { background: #7f1d1d; color: #fca5a5; }
+.live-timer { font-family: monospace; font-weight: 600; margin-left: 8px; }
