@@ -10,12 +10,6 @@
 
     <title>Spălătorie Cămin</title>
 
-    <script>
-        if(sessionStorage.getItem("dormAccess") !== "true") {
-            window.location.href = "password.html";
-        }
-    </script>
-
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,6 +19,17 @@
 </head>
 
 <body>
+
+    <div id="passwordOverlay" class="password-screen">
+        <div class="password-content">
+            <h2><i class="fa-solid fa-lock"></i> Acces Cămin</h2>
+            <p>Introdu parola pentru a accesa spălătoria.</p>
+            <input type="password" id="dormPasswordInput" placeholder="Parola..." style="margin: 15px 0; padding: 12px; width: 200px; border-radius: 8px; border: 1px solid #ccc; text-align: center;">
+            <br>
+            <button id="checkPasswordBtn" class="btn-primary" style="width: auto; display: inline-flex; padding: 10px 30px;">Intră</button>
+            <p id="passwordError" style="color: #ef4444; margin-top: 10px; font-size: 0.9rem;"></p>
+        </div>
+    </div>
 
     <div id="appLoader" class="app-loader">
         <div class="spinner"></div>

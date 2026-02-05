@@ -132,6 +132,14 @@ const ui = {
     currentDate: new Date().toISOString().split('T')[0],
 
     init() {
+        // --- 0. PASSWORD GATE ---
+        if (sessionStorage.getItem("dormAccess") === "true") {
+            document.getElementById('passwordOverlay').style.display = 'none';
+        } else {
+            // Stop loader if password needed
+            document.getElementById('appLoader').style.display = 'none';
+        }
+
         this.setupEventListeners();
 
         // --- 1. FEATURE: AUTO-FILL (Ține-mă minte) ---
@@ -298,6 +306,23 @@ const ui = {
     },
 
     setupEventListeners() {
+        // Password Check
+        const checkPass = () => {
+            const input = document.getElementById('dormPasswordInput');
+            const err = document.getElementById('passwordError');
+            if (input.value === "p20spal") {
+                sessionStorage.setItem("dormAccess", "true");
+                window.location.reload(); // Reload for clean init
+            } else {
+                err.textContent = "Parolă incorectă!";
+                input.value = "";
+            }
+        };
+        document.getElementById('checkPasswordBtn').onclick = checkPass;
+        document.getElementById('dormPasswordInput').onkeyup = (e) => {
+            if(e.key === 'Enter') checkPass();
+        };
+
         document.getElementById('bookingForm').addEventListener('submit', this.handleBooking.bind(this));
 
         document.getElementById('prevDay').onclick = () => this.changeDate(-1);
