@@ -133,18 +133,22 @@
                                 <div class="selector-card" data-value="masina1">
                                     <div class="icon">🧺</div>
                                     <span>Mașina 1</span>
+                                    <div class="live-status" id="status-masina1">...</div>
                                 </div>
                                 <div class="selector-card" data-value="masina2">
                                     <div class="icon">🧺</div>
                                     <span>Mașina 2</span>
+                                    <div class="live-status" id="status-masina2">...</div>
                                 </div>
                                 <div class="selector-card" data-value="uscator1">
                                     <div class="icon">🌬️</div>
                                     <span>Uscător 1</span>
+                                    <div class="live-status" id="status-uscator1">...</div>
                                 </div>
                                 <div class="selector-card" data-value="uscator2">
                                     <div class="icon">🌬️</div>
                                     <span>Uscător 2</span>
+                                    <div class="live-status" id="status-uscator2">...</div>
                                 </div>
                             </div>
                             <!-- Hidden select for compatibility with existing logic -->
@@ -174,7 +178,7 @@
                                 <label for="duration">Durată</label>
 
                                 <select id="duration" required>
-                                    
+
                                     <option value="30">30 min</option>
 
                                     <option value="60">60 min</option>
@@ -223,7 +227,7 @@
 
                 </section>
 
-                
+
 
                 <section class="card">
 
@@ -265,7 +269,7 @@
 
         </main>
 
-        
+
 
         <footer class="app-footer">
 
@@ -291,12 +295,10 @@
 
                 <p id="modalPhoneNumber" class="phone-display">07xx...</p>
 
-                <div class="modal-actions">
-
-                    <a id="callPhoneBtn" href="#" class="btn-action call"><i class="fa-solid fa-phone"></i> Apelează</a>
-
-                    <button id="copyPhoneBtn" class="btn-action copy"><i class="fa-solid fa-copy"></i> Copiază</button>
-
+                <div class="modal-actions" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <a id="callPhoneBtn" href="#" class="btn-action call"><i class="fa-solid fa-phone"></i> Apel</a>
+                    <button id="copyPhoneBtn" class="btn-action copy"><i class="fa-solid fa-copy"></i> Copie</button>
+                    <button id="requestDeleteBtn" class="btn-action delete"><i class="fa-solid fa-trash"></i> Șterge</button>
                 </div>
 
             </div>
@@ -321,6 +323,17 @@
 
         </div>
 
+        <div id="deleteNameModal" class="modal-box" style="display: none;">
+            <button class="modal-close">&times;</button>
+            <h3><i class="fa-solid fa-eraser"></i> Ștergere</h3>
+            <p>Pentru a șterge, introdu <strong>exact</strong> numele folosit la rezervare:</p>
+            <input type="text" id="deleteNameInput" placeholder="Numele tău..." class="full-width-input">
+            <div class="modal-actions">
+                <button id="cancelNameDeleteBtn" class="btn-action secondary">Anulează</button>
+                <button id="confirmNameDeleteBtn" class="btn-action delete">Șterge</button>
+            </div>
+        </div>
+
 
 
         <div id="adminModal" class="modal-box">
@@ -338,7 +351,7 @@
 
             </div>
 
-            
+
 
             <div id="adminContent" style="display: none;" class="admin-dashboard">
                 <div class="dashboard-header">
@@ -403,7 +416,7 @@
                     <h3 id="listTitle">Rezervări Active</h3>
                     <div class="list-badge" id="listBadgeCount">0</div>
                 </div>
-                
+
                 <div id="adminBookingsList" class="admin-bookings-list">
                     <!-- Content injected by JS -->
                 </div>
