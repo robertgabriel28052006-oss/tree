@@ -465,21 +465,19 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                     }
                 }
 
-                try {
-                    const batch = writeBatch(db);
-
-                    if (booking) {
-                        // 3. Ștergem Lock-ul (eliberăm slotul în calendar)
+                // 3. Ștergem Lock-ul (Best Effort - ignorăm erorile de permisiuni aici)
+                if (booking) {
+                    try {
                         const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
-                        const slotRef = doc(db, "slots_lock", slotID);
-                        batch.delete(slotRef);
+                        await deleteDoc(doc(db, "slots_lock", slotID));
+                    } catch (err) {
+                        console.warn("Warning: Nu s-a putut șterge slot-lock:", err);
                     }
+                }
 
-                    // 4. Ștergem Rezervarea
-                    const bookingRef = doc(db, "rezervari", deleteId);
-                    batch.delete(bookingRef);
-
-                    await batch.commit();
+                try {
+                    // 4. Ștergem Rezervarea (Acesta este pasul critic)
+                    await deleteDoc(doc(db, "rezervari", deleteId));
 
                     localBookings = localBookings.filter(b => b.id !== deleteId);
                     historyBookings = historyBookings.filter(b => b.id !== deleteId);
@@ -493,8 +491,8 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                     document.getElementById('confirmModal').style.display = 'none';
                     deleteId = null;
                 } catch (e) {
-                    console.error("Eroare la ștergere:", e);
-                    utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
+                    console.error("Eroare la ștergere rezervare:", e);
+                    utils.showToast(`Eroare: ${e.message || 'Lipsă permisiuni.'}`, 'error');
                 }
             }
         };
