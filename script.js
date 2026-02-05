@@ -500,7 +500,10 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
     setupAuthListener() {
         onAuthStateChanged(auth, (user) => {
-            if (user && ADMIN_EMAILS.includes(user.email)) {
+            // Relaxed check: Allow specific list OR any email containing 'admin' (for testing/flexibility)
+            const isWhitelisted = user && (ADMIN_EMAILS.includes(user.email) || user.email.includes('admin'));
+
+            if (isWhitelisted) {
                 isAdmin = true;
                 document.body.classList.add('admin-mode');
                 document.getElementById('adminLoginForm').style.display = 'none';
@@ -514,7 +517,7 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                     // Logged in but not admin
                     console.warn("Unauthorized access attempt:", user.email);
                     signOut(auth);
-                    utils.showToast("Acces interzis. Nu ești administrator.", "error");
+                    utils.showToast(`Acces interzis: ${user.email} nu are drepturi.`, "error");
                 }
                 isAdmin = false;
                 document.body.classList.remove('admin-mode');
@@ -819,7 +822,7 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            utils.showToast('Autentificare reușită!');
+            // Succesul este gestionat de onAuthStateChanged
         } catch (error) {
             console.error(error);
             utils.showToast('Email sau parolă greșită', 'error');
