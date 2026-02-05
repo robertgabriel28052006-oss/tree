@@ -604,7 +604,16 @@ const ui = {
                 
                 const slotDoc = await transaction.get(slotRef);
                 if (slotDoc.exists()) {
-                    throw "Cineva a rezervat acest slot chiar acum!";
+                    const data = slotDoc.data();
+                    const lockedTime = new Date(data.lockedAt).getTime();
+                    const now = new Date().getTime();
+                    const diff = now - lockedTime;
+                    
+                    // Expire lock after 5 minutes (300000 ms)
+                    if (diff < 300000) {
+                        throw "Cineva a rezervat acest slot chiar acum!";
+                    }
+                    // If expired, we proceed to overwrite it.
                 }
                 
                 transaction.set(slotRef, { 
