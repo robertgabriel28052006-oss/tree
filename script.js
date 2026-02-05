@@ -618,7 +618,7 @@ const ui = {
                 transaction.set(newBookingRef, {
                     userName,
                     phoneNumber: cleanPhone,
-                    pin: pin,
+                    code: pin,
                     machineType: machine,
                     date: this.currentDate,
                     startTime: start,
@@ -812,12 +812,12 @@ const ui = {
              return;
         }
 
-        if (!booking.pin) {
+        if (!booking.code) {
              utils.showToast("Rezervare veche fără PIN. Doar admin o poate șterge.", "error");
              return;
         }
 
-        if (booking.pin === enteredPin) {
+        if (booking.code === enteredPin) {
             await this.performDelete(deleteId);
             document.getElementById('deletePinModal').style.display = 'none';
         } else {
