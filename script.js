@@ -350,19 +350,19 @@ const ui = {
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
             document.getElementById('adminModal').style.display = 'none';
-            document.getElementById('deleteNameModal').style.display = 'none';
+            document.getElementById('deletePinModal').style.display = 'none';
         });
 
         // Delete handlers
         const reqDelBtn = document.getElementById('requestDeleteBtn');
         if (reqDelBtn) reqDelBtn.onclick = () => this.requestDelete();
 
-        const confirmNameBtn = document.getElementById('confirmNameDeleteBtn');
-        if (confirmNameBtn) confirmNameBtn.onclick = () => this.confirmNameDelete();
+        const confirmPinBtn = document.getElementById('confirmPinDeleteBtn');
+        if (confirmPinBtn) confirmPinBtn.onclick = () => this.confirmPinDelete();
 
-        const cancelNameBtn = document.getElementById('cancelNameDeleteBtn');
-        if (cancelNameBtn) cancelNameBtn.onclick = () => {
-             document.getElementById('deleteNameModal').style.display = 'none';
+        const cancelPinBtn = document.getElementById('cancelPinDeleteBtn');
+        if (cancelPinBtn) cancelPinBtn.onclick = () => {
+             document.getElementById('deletePinModal').style.display = 'none';
         };
 
         // Maintenance Toggle
@@ -568,6 +568,7 @@ const ui = {
             // Definim variabilele LA ÎNCEPUT
             let userName = document.getElementById('userName').value.trim();
             const phone = document.getElementById('phoneNumber').value.trim();
+            const pin = document.getElementById('userPin').value.trim();
             const machine = document.getElementById('machineType').value;
             const start = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
@@ -582,6 +583,10 @@ const ui = {
 
             if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) {
                 throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
+            }
+
+            if (!pin || pin.length !== 4 || isNaN(pin)) {
+                throw new Error("PIN-ul trebuie să aibă exact 4 cifre.");
             }
 
             if (!logic.canUserBook(userName)) {
@@ -613,6 +618,7 @@ const ui = {
                 transaction.set(newBookingRef, {
                     userName,
                     phoneNumber: cleanPhone,
+                    pin: pin,
                     machineType: machine,
                     date: this.currentDate,
                     startTime: start,
@@ -765,25 +771,25 @@ const ui = {
 
         document.getElementById('adminModal').style.display = 'none';
         document.getElementById('confirmModal').style.display = 'none';
-        document.getElementById('deleteNameModal').style.display = 'none';
+        document.getElementById('deletePinModal').style.display = 'none';
         document.getElementById('modalOverlay').style.display = 'flex';
         document.getElementById('phoneModal').style.display = 'block';
     },
 
     requestDelete() {
         document.getElementById('phoneModal').style.display = 'none';
-        document.getElementById('deleteNameModal').style.display = 'block';
-        const input = document.getElementById('deleteNameInput');
+        document.getElementById('deletePinModal').style.display = 'block';
+        const input = document.getElementById('deletePinInput');
         input.value = '';
         input.focus();
     },
 
-    async confirmNameDelete() {
-        const input = document.getElementById('deleteNameInput');
-        const name = input.value.trim();
+    async confirmPinDelete() {
+        const input = document.getElementById('deletePinInput');
+        const enteredPin = input.value.trim();
 
-        if (!name) {
-            utils.showToast("Introdu numele pentru confirmare.", "error");
+        if (!enteredPin || enteredPin.length !== 4) {
+            utils.showToast("Introdu PIN-ul de 4 cifre.", "error");
             return;
         }
 
@@ -794,11 +800,28 @@ const ui = {
             return;
         }
 
-        if (booking.userName.toLowerCase() === name.toLowerCase()) {
+        // Logic check:
+        // 1. If admin -> Bypass
+        // 2. If user has NO pin saved (legacy) -> Deny (Admin only)
+        // 3. If user has pin -> Check match
+
+        if (isAdmin) {
+             await this.performDelete(deleteId);
+             document.getElementById('deletePinModal').style.display = 'none';
+             return;
+        }
+
+        if (!booking.pin) {
+             utils.showToast("Rezervare veche fără PIN. Doar admin o poate șterge.", "error");
+             return;
+        }
+
+        if (booking.pin === enteredPin) {
             await this.performDelete(deleteId);
-            document.getElementById('deleteNameModal').style.display = 'none';
+            document.getElementById('deletePinModal').style.display = 'none';
         } else {
-            utils.showToast("Numele nu corespunde!", "error");
+            utils.showToast("PIN Incorect!", "error");
+            input.value = '';
             input.style.borderColor = "var(--danger)";
         }
     },
@@ -808,7 +831,7 @@ const ui = {
 
         // Disable buttons if possible
         const btnAdmin = document.querySelector('.btn-delete-vip'); // Rough selection
-        const btnUser = document.getElementById('confirmNameDeleteBtn');
+        const btnUser = document.getElementById('confirmPinDeleteBtn');
         if(btnUser) btnUser.disabled = true;
 
         try {
@@ -828,7 +851,7 @@ const ui = {
             this.renderAll();
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
-            document.getElementById('deleteNameModal').style.display = 'none';
+            document.getElementById('deletePinModal').style.display = 'none';
         } catch (e) {
             console.error("Eroare la ștergere:", e);
             utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');

@@ -109,6 +109,21 @@
 
                         </div>
 
+                        <div class="form-group">
+
+                            <label for="userPin">PIN Secret (4 cifre)</label>
+
+                            <div class="input-wrapper">
+
+                                <i class="fa-solid fa-key"></i>
+
+                                <input type="text" id="userPin" required placeholder="Ex: 1234" maxlength="4" pattern="\d{4}" title="Introdu exact 4 cifre" autocomplete="off">
+
+                            </div>
+                            <small style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">Vei folosi acest cod pentru a șterge rezervarea.</small>
+
+                        </div>
+
 
 
                         <div class="form-group">
@@ -323,14 +338,14 @@
 
         </div>
 
-        <div id="deleteNameModal" class="modal-box" style="display: none;">
+        <div id="deletePinModal" class="modal-box" style="display: none;">
             <button class="modal-close">&times;</button>
-            <h3><i class="fa-solid fa-eraser"></i> Ștergere</h3>
-            <p>Pentru a șterge, introdu <strong>exact</strong> numele folosit la rezervare:</p>
-            <input type="text" id="deleteNameInput" placeholder="Numele tău..." class="full-width-input">
+            <h3><i class="fa-solid fa-lock"></i> Ștergere</h3>
+            <p>Introdu codul PIN (4 cifre) setat la rezervare:</p>
+            <input type="password" id="deletePinInput" placeholder="PIN..." class="full-width-input" maxlength="4" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;">
             <div class="modal-actions">
-                <button id="cancelNameDeleteBtn" class="btn-action secondary">Anulează</button>
-                <button id="confirmNameDeleteBtn" class="btn-action delete">Șterge</button>
+                <button id="cancelPinDeleteBtn" class="btn-action secondary">Anulează</button>
+                <button id="confirmPinDeleteBtn" class="btn-action delete">Șterge</button>
             </div>
         </div>
 
