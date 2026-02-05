@@ -448,19 +448,34 @@ const ui = {
 const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if(confirmDeleteBtn) confirmDeleteBtn.onclick = async () => {
             if (deleteId) {
+                // 1. Găsim rezervarea
+                const booking = [...localBookings, ...historyBookings].find(b => b.id === deleteId);
+                if (!booking) return;
+
+                // 2. Verificare (dacă e necesar)
+                const verifyContainer = document.getElementById('confirmVerifyContainer');
+                if (verifyContainer.style.display !== 'none') {
+                    const inputPhone = document.getElementById('confirmPhoneInput').value.trim();
+                    const cleanInput = inputPhone.replace(/\D/g, '');
+                    const cleanBooking = booking.phoneNumber.replace(/\D/g, '');
+
+                    if (cleanInput !== cleanBooking) {
+                        document.getElementById('confirmError').style.display = 'block';
+                        return; // Stop here
+                    }
+                }
+
                 try {
-                    // 1. Găsim rezervarea local pentru a-i afla detaliile
-                    const booking = [...localBookings, ...historyBookings].find(b => b.id === deleteId);
                     const batch = writeBatch(db);
 
                     if (booking) {
-                        // 2. Ștergem Lock-ul (eliberăm slotul în calendar)
+                        // 3. Ștergem Lock-ul (eliberăm slotul în calendar)
                         const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
                         const slotRef = doc(db, "slots_lock", slotID);
                         batch.delete(slotRef);
                     }
 
-                    // 3. Ștergem Rezervarea
+                    // 4. Ștergem Rezervarea
                     const bookingRef = doc(db, "rezervari", deleteId);
                     batch.delete(bookingRef);
 
@@ -469,16 +484,18 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
                     localBookings = localBookings.filter(b => b.id !== deleteId);
                     historyBookings = historyBookings.filter(b => b.id !== deleteId);
 
-                    utils.showToast('Rezervare și slot deblocate!');
+                    utils.showToast('Rezervare ștearsă cu succes!');
                     this.renderAdminDashboard();
                     this.renderAll();
+
+                    // Close modal
+                    document.getElementById('modalOverlay').style.display = 'none';
+                    document.getElementById('confirmModal').style.display = 'none';
+                    deleteId = null;
                 } catch (e) {
                     console.error("Eroare la ștergere:", e);
                     utils.showToast('Eroare: Lipsă permisiuni sau eroare server.', 'error');
                 }
-                document.getElementById('modalOverlay').style.display = 'none';
-                document.getElementById('confirmModal').style.display = 'none';
-                deleteId = null;
             }
         };
 
@@ -780,10 +797,35 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
     confirmDelete(id) {
         deleteId = id;
+        const booking = [...localBookings, ...historyBookings].find(b => b.id === id);
+        if (!booking) return;
+
+        const myIds = utils.getMyBookingIds();
+        const isOwnerLocal = myIds.includes(id) || isAdmin;
+
+        const verifyContainer = document.getElementById('confirmVerifyContainer');
+        const phoneInput = document.getElementById('confirmPhoneInput');
+        const confirmText = document.getElementById('confirmText');
+        const errorMsg = document.getElementById('confirmError');
+
+        // Reset state
+        phoneInput.value = '';
+        errorMsg.style.display = 'none';
+
+        if (isOwnerLocal) {
+             verifyContainer.style.display = 'none';
+             confirmText.textContent = "Ești sigur că vrei să ștergi această rezervare?";
+        } else {
+             verifyContainer.style.display = 'block';
+             confirmText.textContent = "Această rezervare nu a fost creată de pe acest dispozitiv.";
+        }
+
         document.getElementById('modalOverlay').style.display = 'flex';
         document.getElementById('phoneModal').style.display = 'none';
         document.getElementById('adminModal').style.display = 'none';
         document.getElementById('confirmModal').style.display = 'block';
+
+        if (!isOwnerLocal) setTimeout(() => phoneInput.focus(), 100);
     },
 
     renderMyBookings() {
@@ -797,10 +839,8 @@ const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         container.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
              const endTime = utils.minsToTime(endMins);
-             const canDelete = myIds.includes(b.id) || isAdmin;
-             const deleteBtn = canDelete ? `<button class="btn-delete" onclick="window.app.confirmDelete('${b.id}')">Anulează</button>` : '';
-
-             return `<div class="booking-item"><div class="booking-info"><strong>${logic.machines[b.machineType]}</strong><span>${utils.formatDateRO(b.date)} • ${b.startTime} - ${endTime}</span></div>${deleteBtn}</div>`;
+             // Show delete button for all name-matched bookings. Validation happens on click.
+             return `<div class="booking-item"><div class="booking-info"><strong>${logic.machines[b.machineType]}</strong><span>${utils.formatDateRO(b.date)} • ${b.startTime} - ${endTime}</span></div><button class="btn-delete" onclick="window.app.confirmDelete('${b.id}')">Anulează</button></div>`;
         }).join('') : '<div class="empty-state">Nu am găsit rezervări.</div>';
     },
 

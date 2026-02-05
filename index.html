@@ -318,7 +318,13 @@
 
             <h3><i class="fa-solid fa-triangle-exclamation"></i> Confirmare</h3>
 
-            <p>Ești sigur că vrei să ștergi această rezervare?</p>
+            <p id="confirmText">Ești sigur că vrei să ștergi această rezervare?</p>
+
+            <div id="confirmVerifyContainer" style="display:none; margin: 15px 0;">
+                <p style="font-size:0.9rem; margin-bottom:5px;">Pentru siguranță, introdu numărul de telefon folosit:</p>
+                <input type="tel" id="confirmPhoneInput" placeholder="07xx xxx xxx" style="width:100%;">
+                <small id="confirmError" style="color:var(--danger); display:none;">Număr incorect!</small>
+            </div>
 
             <div class="modal-actions">
 
