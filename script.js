@@ -552,7 +552,7 @@ const ui = {
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if(confirmDeleteBtn) confirmDeleteBtn.onclick = async () => {
              if (!auth || !auth.currentUser) return;
-             await this.performDelete(deleteId);
+             await this.performDelete(deleteId, true);
         };
 
         document.getElementById('adminToggleBtn').onclick = () => { 
@@ -564,10 +564,12 @@ const ui = {
         };
         document.getElementById('adminLoginBtn').onclick = this.handleAdminLogin.bind(this);
         document.getElementById('adminLogoutBtn').onclick = () => { 
+            if (!auth) return;
             signOut(auth).then(() => {
                 utils.showToast("Deconectare reușită");
             }).catch((error) => {
                 console.error(error);
+                utils.showToast("Eroare la deconectare", "error");
             });
         };
     },
@@ -905,8 +907,9 @@ const ui = {
         }
     },
 
-    async performDelete(id) {
+    async performDelete(id, isAdminDelete = false) {
         if (!id) return;
+        if (isAdminDelete && (!auth || !auth.currentUser)) return;
         
         // Disable buttons if possible
         const btnAdmin = document.querySelector('.btn-delete-vip'); // Rough selection
@@ -952,6 +955,7 @@ const ui = {
     },
 
     confirmDelete(id) {
+        if (!auth || !auth.currentUser) return;
         deleteId = id;
         document.getElementById('modalOverlay').style.display = 'flex';
         document.getElementById('phoneModal').style.display = 'none';
@@ -979,7 +983,11 @@ const ui = {
     },
 
     async handleAdminLogin() { 
-        const email = document.getElementById('adminEmail').value;
+        if (!auth) {
+            utils.showToast("Autentificarea nu este disponibilă. Verifică consola Firebase (Authentication activat?).", "error");
+            return;
+        }
+        const email = document.getElementById('adminEmail').value.trim();
         const password = document.getElementById('adminPassword').value; 
         
         if (!email || !password) {
@@ -987,12 +995,24 @@ const ui = {
             return;
         }
 
+        const btn = document.getElementById('adminLoginBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Se conectează...'; }
         try {
             await signInWithEmailAndPassword(auth, email, password);
             utils.showToast('Autentificare reușită!'); 
         } catch (error) {
-            console.error(error);
-            utils.showToast('Email sau parolă greșită', 'error'); 
+            console.error("Admin login error:", error);
+            const code = error.code || '';
+            let msg = 'Email sau parolă greșită.';
+            if (code === 'auth/user-not-found') msg = 'Nu există cont cu acest email. Creează utilizatorul în Firebase Console → Authentication → Users.';
+            else if (code === 'auth/wrong-password') msg = 'Parolă incorectă.';
+            else if (code === 'auth/invalid-credential') msg = 'Email sau parolă greșită. Verifică în Firebase Console că utilizatorul există.';
+            else if (code === 'auth/invalid-email') msg = 'Adresă de email invalidă.';
+            else if (code === 'auth/operation-not-allowed') msg = 'Autentificare Email/Parolă nu e activată. În Firebase: Authentication → Sign-in method → activează Email/Password.';
+            else if (error.message) msg = error.message;
+            utils.showToast(msg, 'error'); 
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Conectare'; }
         }
     },
 
@@ -1000,7 +1020,7 @@ const ui = {
         if (!auth || !auth.currentUser) return;
         try {
             const d = new Date();
-            d.setDate(d.getDate() - 30);
+            d.setDate(d.getDate() - 5);
             const cutoffDate = d.toISOString().split('T')[0];
             const q = query(bookingsCollection, where("date", "<", cutoffDate), limit(50));
             const snapshot = await getDocs(q);
@@ -1076,5 +1096,4 @@ const ui = {
     }
 };
 
-window.app = ui; 
 document.addEventListener('DOMContentLoaded', () => ui.init());
