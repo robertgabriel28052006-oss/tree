@@ -3,17 +3,17 @@ import { logic } from './logic.js';
 import { firebaseService } from './firebase-service.js';
 
 let localBookings = [];
-let historyBookings = []; 
+let historyBookings = [];
 let deleteId = null;
 let isAdmin = false;
 let adminViewMode = 'active';
 
 export const ui = {
     currentDate: new Date().toISOString().split('T')[0],
-    
+
     init() {
         this.setupEventListeners();
-        
+
         // --- 1. FEATURE: AUTO-FILL (Ține-mă minte) ---
         const savedName = localStorage.getItem('studentName');
         const savedPhone = localStorage.getItem('studentPhone');
@@ -27,7 +27,7 @@ export const ui = {
         }
 
         if(firebaseService.auth) this.setupAuthListener();
-        
+
         // Safety Timeout Loader
         setTimeout(() => {
             const loader = document.getElementById('appLoader');
@@ -54,7 +54,7 @@ export const ui = {
         const today = new Date().toISOString().split('T')[0];
         dateInput.min = today;
         dateInput.value = this.currentDate;
-        
+
         this.updateDateDisplay();
         this.startMidnightWatcher();
 
@@ -63,25 +63,25 @@ export const ui = {
         setInterval(() => this.updateMachineStatus(), 60000);
 
         // Firebase Listeners (Optimized)
-        const d = new Date(); 
-        d.setDate(d.getDate() - 1); 
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
         const yesterday = d.toISOString().split('T')[0];
-        
+
         const dNext = new Date();
         dNext.setDate(dNext.getDate() + 7);
         const nextWeek = dNext.toISOString().split('T')[0];
 
         const q = firebaseService.query(
-            firebaseService.bookingsCollection, 
-            firebaseService.where("date", ">=", yesterday), 
-            firebaseService.orderBy("date"), 
+            firebaseService.bookingsCollection,
+            firebaseService.where("date", ">=", yesterday),
+            firebaseService.orderBy("date"),
             firebaseService.orderBy("startTime")
         );
-        
+
         firebaseService.onSnapshot(q, (snapshot) => {
             localBookings = [];
             snapshot.docs.forEach(doc => localBookings.push({ ...doc.data(), id: doc.id }));
-            
+
             const loader = document.getElementById('appLoader');
             if(loader) {
                 loader.style.opacity = '0';
@@ -91,8 +91,8 @@ export const ui = {
             this.renderAll();
             // Dacă avem date salvate, randăm rezervările utilizatorului
             if(localStorage.getItem('studentName')) this.renderMyBookings();
-            
-        }, (error) => { 
+
+        }, (error) => {
             console.error("Eroare Firebase (fallback activat):", error);
             const qFallback = firebaseService.query(firebaseService.bookingsCollection, firebaseService.where("date", ">=", yesterday), firebaseService.orderBy("date"));
             firebaseService.onSnapshot(qFallback, (snap) => {
@@ -112,10 +112,10 @@ export const ui = {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 const maintenanceMode = data.maintenance || false;
-                
+
                 const toggle = document.getElementById('maintenanceToggle');
                 if(toggle) toggle.checked = maintenanceMode;
-                
+
                 const overlay = document.getElementById('maintenanceOverlay');
                 if (maintenanceMode && !isAdmin) {
                     overlay.style.display = 'flex';
@@ -155,10 +155,10 @@ export const ui = {
             const activeBooking = localBookings.find(b => {
                 if (b.machineType !== machineKey) return false;
                 if (b.date !== today) return false;
-                
+
                 const startMins = utils.timeToMins(b.startTime);
                 const endMins = startMins + parseInt(b.duration);
-                
+
                 return currentMins >= startMins && currentMins < endMins;
             });
 
@@ -166,7 +166,7 @@ export const ui = {
                 const startMins = utils.timeToMins(activeBooking.startTime);
                 const endMins = startMins + parseInt(activeBooking.duration);
                 const remaining = endMins - currentMins;
-                
+
                 statusEl.textContent = `Ocupat (${remaining} min)`;
                 statusEl.className = 'live-status busy';
             } else {
@@ -178,10 +178,10 @@ export const ui = {
 
     setupEventListeners() {
         document.getElementById('bookingForm').addEventListener('submit', this.handleBooking.bind(this));
-        
+
         document.getElementById('prevDay').onclick = () => this.changeDate(-1);
         document.getElementById('nextDay').onclick = () => this.changeDate(1);
-        
+
         const timeInput = document.getElementById('startTime');
         if (timeInput) {
             timeInput.addEventListener('change', () => {
@@ -200,13 +200,13 @@ export const ui = {
                 }
             });
         }
-        
-        document.getElementById('bookingDate').onchange = (e) => { 
-            this.currentDate = e.target.value; 
-            this.updateDateDisplay(); 
-            this.renderAll(); 
+
+        document.getElementById('bookingDate').onchange = (e) => {
+            this.currentDate = e.target.value;
+            this.updateDateDisplay();
+            this.renderAll();
         };
-        
+
         document.getElementById('machineType').onchange = () => {
              document.getElementById('startTime').style.borderColor = 'var(--border)';
         };
@@ -273,7 +273,7 @@ export const ui = {
                 this.confirmDelete(btn.dataset.deleteId);
             }
         });
-        
+
         document.querySelectorAll('.modal-close').forEach(btn => btn.onclick = () => {
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
@@ -322,7 +322,7 @@ export const ui = {
              document.getElementById('phoneModal').style.display = 'none';
              document.getElementById('confirmModal').style.display = 'none';
         };
-        
+
         const themeBtn = document.getElementById('themeToggleBtn');
         if(themeBtn) {
             themeBtn.onclick = () => {
@@ -337,7 +337,7 @@ export const ui = {
         // Admin Search & Tabs
         document.getElementById('adminSearchInput').addEventListener('input', () => this.renderAdminDashboard());
         document.getElementById('adminDateFilter').addEventListener('change', () => this.renderAdminDashboard());
-        
+
         document.getElementById('tabActive').onclick = () => {
              adminViewMode = 'active';
              document.getElementById('tabActive').classList.add('active');
@@ -384,7 +384,7 @@ export const ui = {
             exportBtn.onclick = () => {
                 if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
                 const dataToExport = (adminViewMode === 'active') ? localBookings : historyBookings;
-                
+
                 if (dataToExport.length === 0) {
                     utils.showToast("Nu sunt date de exportat!", "error");
                     return;
@@ -430,15 +430,15 @@ export const ui = {
              await this.performDelete(deleteId, true);
         };
 
-        document.getElementById('adminToggleBtn').onclick = () => { 
+        document.getElementById('adminToggleBtn').onclick = () => {
             document.getElementById('phoneModal').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
             document.getElementById('deletePinModal').style.display = 'none';
-            document.getElementById('modalOverlay').style.display = 'flex'; 
+            document.getElementById('modalOverlay').style.display = 'flex';
             document.getElementById('adminModal').style.display = 'block';
         };
         document.getElementById('adminLoginBtn').onclick = this.handleAdminLogin.bind(this);
-        document.getElementById('adminLogoutBtn').onclick = () => { 
+        document.getElementById('adminLogoutBtn').onclick = () => {
             if (!firebaseService.auth) return;
             firebaseService.signOut(firebaseService.auth).then(() => {
                 utils.showToast("Deconectare reușită");
@@ -454,19 +454,19 @@ export const ui = {
             if (user) {
                 isAdmin = true;
                 document.body.classList.add('admin-mode');
-                document.getElementById('adminLoginForm').style.display = 'none'; 
-                document.getElementById('adminContent').style.display = 'block'; 
+                document.getElementById('adminLoginForm').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
                 document.getElementById('maintenanceOverlay').style.display = 'none';
                 this.renderAdminDashboard();
                 this.cleanupOldBookings();
             } else {
                 isAdmin = false;
                 document.body.classList.remove('admin-mode');
-                document.getElementById('adminContent').style.display = 'none'; 
-                document.getElementById('adminLoginForm').style.display = 'block'; 
+                document.getElementById('adminContent').style.display = 'none';
+                document.getElementById('adminLoginForm').style.display = 'block';
                 document.getElementById('adminPassword').value = '';
                 document.getElementById('adminEmail').value = '';
-                
+
                 const toggle = document.getElementById('maintenanceToggle');
                 if(toggle && toggle.checked) {
                     document.getElementById('maintenanceOverlay').style.display = 'flex';
@@ -480,7 +480,7 @@ export const ui = {
         const date = new Date(this.currentDate);
         date.setDate(date.getDate() + days);
         const newDateStr = date.toISOString().split('T')[0];
-        
+
         const today = new Date().toISOString().split('T')[0];
         if (newDateStr < today) {
             utils.showToast('Nu poți vedea programul din trecut.', 'error');
@@ -489,14 +489,14 @@ export const ui = {
 
         this.currentDate = newDateStr;
         document.getElementById('bookingDate').value = this.currentDate;
-        this.updateDateDisplay(); 
-        this.renderAll(); 
+        this.updateDateDisplay();
+        this.renderAll();
     },
 
-    updateDateDisplay() { 
-        const display = document.getElementById('currentDateDisplay'); 
-        const today = new Date().toISOString().split('T')[0]; 
-        display.textContent = (this.currentDate === today) ? "Astăzi" : utils.formatDateRO(this.currentDate); 
+    updateDateDisplay() {
+        const display = document.getElementById('currentDateDisplay');
+        const today = new Date().toISOString().split('T')[0];
+        display.textContent = (this.currentDate === today) ? "Astăzi" : utils.formatDateRO(this.currentDate);
     },
 
     // --- 3. HANDLE BOOKING (CORECTAT ȘI OPTIMIZAT) ---
@@ -504,7 +504,7 @@ export const ui = {
         e.preventDefault();
         const submitBtn = e.target.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn.innerHTML;
-        
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;margin:0;display:inline-block;"></div> Verificare...';
 
@@ -529,7 +529,7 @@ export const ui = {
             if (skipPhone) {
                 cleanPhone = "-";
             } else {
-                if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) { 
+                if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) {
                     throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
                 }
             }
@@ -537,7 +537,7 @@ export const ui = {
             if (!pin || pin.length !== 4 || isNaN(pin)) {
                 throw new Error("PIN-ul trebuie să aibă exact 4 cifre.");
             }
-            
+
             if (!logic.canUserBook(userName, localBookings)) {
                 throw new Error("Ai atins limita de 4 rezervări active!");
             }
@@ -550,23 +550,23 @@ export const ui = {
             await firebaseService.runTransaction(firebaseService.db, async (transaction) => {
                 const slotID = `${this.currentDate}_${machine}_${start}`;
                 const bookingRef = firebaseService.doc(firebaseService.bookingsCollection, slotID);
-                
+
                 const bookingDoc = await transaction.get(bookingRef);
                 if (bookingDoc.exists()) {
                     throw "Intervalul este deja rezervat!";
                 }
 
                 const pinHash = await utils.hashPin(pin);
-                
-                transaction.set(bookingRef, { 
-                    userName, 
-                    phoneNumber: cleanPhone, 
+
+                transaction.set(bookingRef, {
+                    userName,
+                    phoneNumber: cleanPhone,
                     pinHash,
-                    machineType: machine, 
-                    date: this.currentDate, 
-                    startTime: start, 
-                    duration: duration, 
-                    createdAt: new Date().toISOString() 
+                    machineType: machine,
+                    date: this.currentDate,
+                    startTime: start,
+                    duration: duration,
+                    createdAt: new Date().toISOString()
                 });
             });
 
@@ -581,34 +581,34 @@ export const ui = {
             });
 
             utils.showToast('Rezervare salvată cu succes!');
-            e.target.reset(); 
-            
+            e.target.reset();
+
             // Re-umplem câmpurile
-            document.getElementById('userName').value = userName; 
+            document.getElementById('userName').value = userName;
             document.getElementById('bookingDate').value = this.currentDate;
             document.getElementById('startTime').style.borderColor = 'var(--border)';
             document.querySelectorAll('.selected-slot').forEach(el => el.classList.remove('selected-slot'));
-            
-        } catch (error) { 
-            console.error(error); 
+
+        } catch (error) {
+            console.error(error);
             let msg = 'Eroare server.';
             if (typeof error === 'string') msg = error;
             else if (error.message) msg = error.message;
-            utils.showToast(msg, 'error'); 
+            utils.showToast(msg, 'error');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalBtnText;
         }
     },
 
-    renderAll() { 
-        this.renderSchedule(); 
-        this.renderMyBookings(); 
-        this.renderUpcoming(); 
+    renderAll() {
+        this.renderSchedule();
+        this.renderMyBookings();
+        this.renderUpcoming();
         this.updateMachineStatus();
-        if (document.getElementById('adminContent').style.display === 'block') { 
-            this.renderAdminDashboard(); 
-        } 
+        if (document.getElementById('adminContent').style.display === 'block') {
+            this.renderAdminDashboard();
+        }
     },
 
     renderSchedule() {
@@ -630,32 +630,32 @@ export const ui = {
             header.innerHTML = `<small>${machineKey.includes('masina') ? '🧺' : '🌬️'}</small><br>${logic.machines[machineKey]}`; col.appendChild(header);
 
             slots.forEach(slot => {
-                const slotMins = utils.timeToMins(slot); 
-                const nextSlotMins = slotMins + 30; 
+                const slotMins = utils.timeToMins(slot);
+                const nextSlotMins = slotMins + 30;
 
                 const booking = allBookings.find(b => {
                     if (b.machineType !== machineKey) return false;
                     let bStart = utils.timeToMins(b.startTime);
-                    let bEnd = bStart + parseInt(b.duration); 
+                    let bEnd = bStart + parseInt(b.duration);
                     if (b.date === prevDate) { bStart = 0; bEnd = bEnd - 1440; }
                     return (bStart < nextSlotMins && bEnd > slotMins);
                 });
 
                 const div = document.createElement('div'); div.className = `time-slot ${booking ? 'occupied' : 'available'}`;
-                
+
                 if (booking) {
                     let bStart = utils.timeToMins(booking.startTime);
                     let bEnd = bStart + parseInt(booking.duration);
                     let isSpill = false;
                     if (booking.date === prevDate) { isSpill = true; bStart = 0; bEnd = bEnd - 1440; }
-                    
+
                     const isStartOfBookingInGrid = (bStart >= slotMins && bStart < nextSlotMins);
 
-                    if (bStart >= slotMins) div.classList.add('booking-start'); 
-                    if (bEnd <= nextSlotMins) div.classList.add('booking-end'); 
+                    if (bStart >= slotMins) div.classList.add('booking-start');
+                    if (bEnd <= nextSlotMins) div.classList.add('booking-end');
                     if (bStart < slotMins && bEnd > nextSlotMins) div.classList.add('booking-middle');
 
-                    if (isStartOfBookingInGrid) { 
+                    if (isStartOfBookingInGrid) {
                         let timeText = "";
                         if (isSpill) {
                             timeText = `... - ${utils.minsToTime(bEnd)}`;
@@ -664,20 +664,20 @@ export const ui = {
                             const endStr = realEnd > 1440 ? utils.minsToTime(realEnd - 1440) + " (mâine)" : utils.minsToTime(realEnd);
                             timeText = `${booking.startTime} - ${endStr}`;
                         }
-                        div.innerHTML = `<div class="slot-content"><span class="slot-time">${utils.escapeHtml(timeText)}</span><span class="slot-name">${utils.escapeHtml(booking.userName)}</span></div>`; 
+                        div.innerHTML = `<div class="slot-content"><span class="slot-time">${utils.escapeHtml(timeText)}</span><span class="slot-name">${utils.escapeHtml(booking.userName)}</span></div>`;
                     }
-                    div.title = `Rezervat: ${booking.userName}`; 
+                    div.title = `Rezervat: ${booking.userName}`;
                     div.onclick = () => this.showPhoneModal(booking);
                 } else {
                     div.textContent = slot;
                     div.onclick = (e) => {
-                        document.getElementById('machineType').value = machineKey; 
-                        document.getElementById('duration').value = "60"; 
-                        document.getElementById('startTime').value = slot; 
-                        
-                        document.querySelector('.booking-card').scrollIntoView({behavior: 'smooth', block: 'center'}); 
-                        document.querySelector('.booking-card').classList.add('highlight-pulse'); 
-                        setTimeout(() => document.querySelector('.booking-card').classList.remove('highlight-pulse'), 1000); 
+                        document.getElementById('machineType').value = machineKey;
+                        document.getElementById('duration').value = "60";
+                        document.getElementById('startTime').value = slot;
+
+                        document.querySelector('.booking-card').scrollIntoView({behavior: 'smooth', block: 'center'});
+                        document.querySelector('.booking-card').classList.add('highlight-pulse');
+                        setTimeout(() => document.querySelector('.booking-card').classList.remove('highlight-pulse'), 1000);
 
                         document.querySelectorAll('.selected-slot').forEach(el => el.classList.remove('selected-slot'));
                         e.target.classList.add('selected-slot');
@@ -689,42 +689,42 @@ export const ui = {
         });
     },
 
-    showPhoneModal(booking) { 
+    showPhoneModal(booking) {
         deleteId = booking.id;
-        document.getElementById('modalUserName').textContent = booking.userName; 
-        
+        document.getElementById('modalUserName').textContent = booking.userName;
+
         const phoneEl = document.getElementById('modalPhoneNumber');
         const callBtn = document.getElementById('callPhoneBtn');
         const copyBtn = document.getElementById('copyPhoneBtn');
-        
+
         // Telefon vizibil pentru toată lumea
         if (booking.phoneNumber === '-' || booking.phoneNumber === 'Nu este necesar') {
             phoneEl.textContent = "Numărul de telefon se află pe foaia oficială din spălătorie.";
             phoneEl.style.fontStyle = 'italic';
             phoneEl.style.fontSize = '0.9rem';
             phoneEl.style.color = 'var(--text-muted)';
-            
+
             callBtn.style.display = 'none';
             copyBtn.style.display = 'none';
         } else {
-            phoneEl.textContent = booking.phoneNumber; 
+            phoneEl.textContent = booking.phoneNumber;
             phoneEl.style.fontStyle = 'normal';
             phoneEl.style.fontSize = '';
             phoneEl.style.color = '';
 
             callBtn.style.display = 'inline-block';
             copyBtn.style.display = 'inline-block';
-            callBtn.href = `tel:${booking.phoneNumber}`; 
-            copyBtn.onclick = () => { 
-                navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); }); 
+            callBtn.href = `tel:${booking.phoneNumber}`;
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); });
             };
         }
 
-        document.getElementById('adminModal').style.display = 'none'; 
+        document.getElementById('adminModal').style.display = 'none';
         document.getElementById('confirmModal').style.display = 'none';
         document.getElementById('deletePinModal').style.display = 'none';
-        document.getElementById('modalOverlay').style.display = 'flex'; 
-        document.getElementById('phoneModal').style.display = 'block'; 
+        document.getElementById('modalOverlay').style.display = 'flex';
+        document.getElementById('phoneModal').style.display = 'block';
     },
 
     requestDelete(id) {
@@ -739,7 +739,7 @@ export const ui = {
     async confirmPinDelete() {
         const input = document.getElementById('deletePinInput');
         const enteredPin = input.value.trim();
-        
+
         if (!enteredPin || enteredPin.length !== 4) {
             utils.showToast("Introdu PIN-ul de 4 cifre.", "error");
             return;
@@ -788,8 +788,8 @@ export const ui = {
 
     async performDelete(id, isAdminDelete = false) {
         if (!id) return;
-        if (isAdminDelete && (!auth || !auth.currentUser)) return;
-        
+        if (isAdminDelete && (!firebaseService.auth || !firebaseService.auth.currentUser)) return;
+
         // Disable buttons if possible
         const btnAdmin = document.querySelector('.btn-delete-vip'); // Rough selection
         const btnUser = document.getElementById('confirmPinDeleteBtn');
@@ -797,7 +797,7 @@ export const ui = {
 
         try {
             const booking = [...localBookings, ...historyBookings].find(b => b.id === id);
-            
+
             // 1. Try to delete the lock (Best Effort)
             if (booking) {
                 const slotID = `${booking.date}_${booking.machineType}_${booking.startTime}`;
@@ -810,13 +810,13 @@ export const ui = {
 
             // 2. Try to delete the reservation
             await firebaseService.deleteDoc(firebaseService.doc(firebaseService.db, "rezervari", id));
-            
+
             // Update UI on success
             localBookings = localBookings.filter(b => b.id !== id);
             historyBookings = historyBookings.filter(b => b.id !== id);
-            
+
             utils.showToast('Rezervare ștearsă cu succes!');
-            this.renderAll(); 
+            this.renderAll();
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('confirmModal').style.display = 'none';
             document.getElementById('deletePinModal').style.display = 'none';
@@ -842,33 +842,33 @@ export const ui = {
         document.getElementById('confirmModal').style.display = 'block';
     },
 
-    renderMyBookings() { 
-        const container = document.getElementById('myBookings'); 
-        const currentUser = document.getElementById('userName').value.trim().toLowerCase(); 
-        if (!currentUser) { container.innerHTML = '<div class="empty-state">Introdu numele pentru a vedea rezervările.</div>'; return; } 
-        const bookings = localBookings.filter(b => b.userName.toLowerCase().includes(currentUser)).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)); 
+    renderMyBookings() {
+        const container = document.getElementById('myBookings');
+        const currentUser = document.getElementById('userName').value.trim().toLowerCase();
+        if (!currentUser) { container.innerHTML = '<div class="empty-state">Introdu numele pentru a vedea rezervările.</div>'; return; }
+        const bookings = localBookings.filter(b => b.userName.toLowerCase().includes(currentUser)).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
         container.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
              const endTime = utils.minsToTime(endMins);
              return `<div class="booking-item"><div class="booking-info"><strong>${utils.escapeHtml(logic.machines[b.machineType])}</strong><span>${utils.escapeHtml(utils.formatDateRO(b.date))} • ${utils.escapeHtml(b.startTime)} - ${utils.escapeHtml(endTime)}</span></div><button class="btn-delete" data-delete-id="${utils.escapeHtml(b.id)}">Anulează</button></div>`;
-        }).join('') : '<div class="empty-state">Nu am găsit rezervări.</div>'; 
+        }).join('') : '<div class="empty-state">Nu am găsit rezervări.</div>';
     },
 
-    renderUpcoming() { 
-        const container = document.getElementById('upcomingBookings'); 
-        const today = new Date().toISOString().split('T')[0]; 
-        const bookings = localBookings.filter(b => b.date > today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5); 
-        container.innerHTML = bookings.length ? bookings.map(b => `<div class="booking-item"><div class="booking-info"><strong>${utils.escapeHtml(b.userName)}</strong><span>${utils.escapeHtml(utils.formatDateRO(b.date))} • ${utils.escapeHtml(logic.machines[b.machineType])}</span></div></div>`).join('') : '<div class="empty-state">Nimic planificat.</div>'; 
+    renderUpcoming() {
+        const container = document.getElementById('upcomingBookings');
+        const today = new Date().toISOString().split('T')[0];
+        const bookings = localBookings.filter(b => b.date > today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+        container.innerHTML = bookings.length ? bookings.map(b => `<div class="booking-item"><div class="booking-info"><strong>${utils.escapeHtml(b.userName)}</strong><span>${utils.escapeHtml(utils.formatDateRO(b.date))} • ${utils.escapeHtml(logic.machines[b.machineType])}</span></div></div>`).join('') : '<div class="empty-state">Nimic planificat.</div>';
     },
 
-    async handleAdminLogin() { 
+    async handleAdminLogin() {
         if (!firebaseService.auth) {
             utils.showToast("Autentificarea nu este disponibilă. Verifică consola Firebase (Authentication activat?).", "error");
             return;
         }
         const email = document.getElementById('adminEmail').value.trim();
-        const password = document.getElementById('adminPassword').value; 
-        
+        const password = document.getElementById('adminPassword').value;
+
         if (!email || !password) {
             utils.showToast("Introdu email și parolă", "error");
             return;
@@ -878,7 +878,7 @@ export const ui = {
         if (btn) { btn.disabled = true; btn.textContent = 'Se conectează...'; }
         try {
             await firebaseService.signInWithEmailAndPassword(firebaseService.auth, email, password);
-            utils.showToast('Autentificare reușită!'); 
+            utils.showToast('Autentificare reușită!');
         } catch (error) {
             console.error("Admin login error:", error);
             const code = error.code || '';
@@ -889,7 +889,7 @@ export const ui = {
             else if (code === 'auth/invalid-email') msg = 'Adresă de email invalidă.';
             else if (code === 'auth/operation-not-allowed') msg = 'Autentificare Email/Parolă nu e activată. În Firebase: Authentication → Sign-in method → activează Email/Password.';
             else if (error.message) msg = error.message;
-            utils.showToast(msg, 'error'); 
+            utils.showToast(msg, 'error');
         } finally {
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Conectare'; }
         }
@@ -912,17 +912,17 @@ export const ui = {
         } catch (e) { console.error("[Cleanup Error]", e); }
     },
 
-    renderAdminDashboard() { 
+    renderAdminDashboard() {
         if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
         const today = new Date().toISOString().split('T')[0];
         const todayBookings = localBookings.filter(b => b.date === today).length;
         const totalActive = localBookings.length;
-        
+
         const elToday = document.getElementById('statToday');
         if(elToday) elToday.textContent = todayBookings;
         const elTotal = document.getElementById('statTotal');
         if(elTotal) elTotal.textContent = totalActive;
-        
+
         const sourceData = (adminViewMode === 'active') ? localBookings : historyBookings;
         const searchInput = document.getElementById('adminSearchInput');
         const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -947,7 +947,7 @@ export const ui = {
              if(isChecked) statusLabel.classList.add('offline'); else statusLabel.classList.remove('offline');
         }
 
-        const list = document.getElementById('adminBookingsList'); 
+        const list = document.getElementById('adminBookingsList');
         const bookings = [...filteredData].sort((a, b) => {
              if (adminViewMode === 'history') {
                  return b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime);
@@ -955,7 +955,7 @@ export const ui = {
                  return a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime);
              }
         });
-        
+
         list.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
              const endTime = utils.minsToTime(endMins);
@@ -971,7 +971,7 @@ export const ui = {
                     <i class="fa-solid fa-trash"></i>
                 </button>
              </div>`;
-        }).join('') : '<div class="empty-state">Nu am găsit rezervări conform căutării.</div>'; 
+        }).join('') : '<div class="empty-state">Nu am găsit rezervări conform căutării.</div>';
     }
 };
 
