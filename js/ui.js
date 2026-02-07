@@ -297,7 +297,7 @@ export const ui = {
 
         // Maintenance Toggle
         document.getElementById('maintenanceToggle').onchange = async (e) => {
-            if (!auth || !auth.currentUser) {
+            if (!firebaseService.auth || !firebaseService.auth.currentUser) {
                 e.target.checked = !e.target.checked;
                 return;
             }
@@ -384,7 +384,7 @@ export const ui = {
         const exportBtn = document.getElementById('exportCsvBtn');
         if (exportBtn) {
             exportBtn.onclick = () => {
-                if (!auth || !auth.currentUser) return;
+                if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
                 const dataToExport = (adminViewMode === 'active') ? localBookings : historyBookings;
 
                 if (dataToExport.length === 0) {
@@ -428,7 +428,7 @@ export const ui = {
         // Admin Confirm Delete
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         if(confirmDeleteBtn) confirmDeleteBtn.onclick = async () => {
-             if (!auth || !auth.currentUser) return;
+             if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
              await this.performDelete(deleteId, true);
         };
 
@@ -441,8 +441,8 @@ export const ui = {
         };
         document.getElementById('adminLoginBtn').onclick = this.handleAdminLogin.bind(this);
         document.getElementById('adminLogoutBtn').onclick = () => {
-            if (!auth) return;
-            firebaseService.signOut(auth).then(() => {
+            if (!firebaseService.auth) return;
+            firebaseService.signOut(firebaseService.auth).then(() => {
                 utils.showToast("Deconectare reușită");
             }).catch((error) => {
                 console.error(error);
@@ -452,7 +452,7 @@ export const ui = {
     },
 
     setupAuthListener() {
-        firebaseService.onAuthStateChanged(auth, (user) => {
+        firebaseService.onAuthStateChanged(firebaseService.auth, (user) => {
             if (user) {
                 isAdmin = true;
                 document.body.classList.add('admin-mode');
@@ -774,7 +774,7 @@ export const ui = {
         // 2. If user has NO pin saved (legacy) -> Deny (Admin only)
         // 3. If user has pin -> Check match
 
-        if (auth && auth.currentUser) {
+        if (firebaseService.auth && firebaseService.auth.currentUser) {
              await this.performDelete(deleteId);
              document.getElementById('deletePinModal').style.display = 'none';
              return;
@@ -851,7 +851,7 @@ export const ui = {
     },
 
     confirmDelete(id) {
-        if (!auth || !auth.currentUser) return;
+        if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
         deleteId = id;
         document.getElementById('modalOverlay').style.display = 'flex';
         document.getElementById('phoneModal').style.display = 'none';
@@ -879,7 +879,7 @@ export const ui = {
     },
 
     async handleAdminLogin() {
-        if (!auth) {
+        if (!firebaseService.auth) {
             utils.showToast("Autentificarea nu este disponibilă. Verifică consola Firebase (Authentication activat?).", "error");
             return;
         }
@@ -894,7 +894,7 @@ export const ui = {
         const btn = document.getElementById('adminLoginBtn');
         if (btn) { btn.disabled = true; btn.textContent = 'Se conectează...'; }
         try {
-            await firebaseService.signInWithEmailAndPassword(auth, email, password);
+            await firebaseService.signInWithEmailAndPassword(firebaseService.auth, email, password);
             utils.showToast('Autentificare reușită!');
         } catch (error) {
             console.error("Admin login error:", error);
@@ -913,7 +913,7 @@ export const ui = {
     },
 
     async cleanupOldBookings() {
-        if (!auth || !auth.currentUser) return;
+        if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
         try {
             const d = new Date();
             d.setDate(d.getDate() - 5);
@@ -930,7 +930,7 @@ export const ui = {
     },
 
     renderAdminDashboard() {
-        if (!auth || !auth.currentUser) return;
+        if (!firebaseService.auth || !firebaseService.auth.currentUser) return;
         const today = new Date().toISOString().split('T')[0];
         const todayBookings = localBookings.filter(b => b.date === today).length;
         const totalActive = localBookings.length;
