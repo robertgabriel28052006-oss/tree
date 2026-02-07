@@ -127,6 +127,13 @@ export const ui = {
     },
 
     startMidnightWatcher() {
+        // "Now" indicator update every minute
+        setInterval(() => {
+             if (this.currentDate === new Date().toISOString().split('T')[0]) {
+                 this.renderNowIndicator();
+             }
+        }, 60000);
+
         setInterval(() => {
             const realToday = new Date().toISOString().split('T')[0];
             const dateInput = document.getElementById('bookingDate');
@@ -182,24 +189,15 @@ export const ui = {
         document.getElementById('prevDay').onclick = () => this.changeDate(-1);
         document.getElementById('nextDay').onclick = () => this.changeDate(1);
 
-        const timeInput = document.getElementById('startTime');
-        if (timeInput) {
-            timeInput.addEventListener('change', () => {
-                const machine = document.getElementById('machineType').value;
-                const date = document.getElementById('bookingDate').value;
-                const start = timeInput.value;
-                const duration = document.getElementById('duration').value;
-
-                if (machine && date && start) {
-                    if (!logic.isSlotFree(machine, date, start, duration, localBookings)) {
-                        utils.showToast('⚠️ Ora selectată se suprapune!', 'error');
-                        timeInput.style.borderColor = 'var(--danger)';
-                    } else {
-                        timeInput.style.borderColor = 'var(--success)';
-                    }
-                }
-            });
-        }
+        // Validation listeners
+        const formInputs = ['startTime', 'machineType', 'bookingDate', 'duration'];
+        formInputs.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.addEventListener('input', this.validateBookingForm.bind(this));
+                el.addEventListener('change', this.validateBookingForm.bind(this));
+            }
+        });
 
         document.getElementById('bookingDate').onchange = (e) => {
             this.currentDate = e.target.value;
@@ -499,6 +497,40 @@ export const ui = {
         display.textContent = (this.currentDate === today) ? "Astăzi" : utils.formatDateRO(this.currentDate);
     },
 
+    validateBookingForm() {
+        const machine = document.getElementById('machineType').value;
+        const date = document.getElementById('bookingDate').value;
+        const start = document.getElementById('startTime').value;
+        const duration = document.getElementById('duration').value;
+        const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
+        const startInput = document.getElementById('startTime');
+
+        if (!machine || !date || !start) {
+             if(submitBtn) submitBtn.disabled = true;
+             return;
+        }
+
+        const isFree = logic.isSlotFree(machine, date, start, duration, localBookings);
+
+        if (!isFree) {
+            startInput.style.borderColor = 'var(--danger)';
+            startInput.title = "Intervalul este ocupat";
+            if(submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-ban"></i> Interval Ocupat';
+                submitBtn.style.opacity = '0.7';
+            }
+        } else {
+            startInput.style.borderColor = 'var(--success)';
+            startInput.title = "";
+            if(submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Rezervă Acum';
+                submitBtn.style.opacity = '1';
+            }
+        }
+    },
+
     // --- 3. HANDLE BOOKING (CORECTAT ȘI OPTIMIZAT) ---
     async handleBooking(e) {
         e.preventDefault();
@@ -612,7 +644,10 @@ export const ui = {
     },
 
     renderSchedule() {
-        const grid = document.getElementById('scheduleGrid'); grid.innerHTML = '';
+        const grid = document.getElementById('scheduleGrid');
+        grid.innerHTML = '';
+        grid.style.position = 'relative'; // Ensure positioning context for Now Indicator
+
         const slots = logic.generateSlots();
         const todaysBookings = localBookings.filter(b => b.date === this.currentDate);
         const prevDate = utils.addDays(this.currentDate, -1);
@@ -687,6 +722,60 @@ export const ui = {
             });
             grid.appendChild(col);
         });
+
+        // Add Now Indicator
+        if (this.currentDate === new Date().toISOString().split('T')[0]) {
+            this.renderNowIndicator();
+        }
+    },
+
+    renderNowIndicator() {
+        const grid = document.getElementById('scheduleGrid');
+        let indicator = document.getElementById('nowIndicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'nowIndicator';
+            // We append it to the grid container, so it overlays the columns
+            // Since grid has position:relative, absolute child works relative to it
+            grid.appendChild(indicator);
+        } else {
+             // ensure it's last child to be on top? z-index handles it
+             if(indicator.parentElement !== grid) grid.appendChild(indicator);
+        }
+
+        // Calculate position
+        // We need to find the height of a single slot.
+        // Assuming all slots are equal height and the first slot is representative.
+        const firstSlot = grid.querySelector('.time-slot');
+        if (!firstSlot) return;
+
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        // Slot duration is 30 mins
+        // We need to find the "start" of the slots.
+        // The header is at the top.
+        // We can use the offsetTop of the first slot (00:00) relative to the grid.
+
+        // Wait, the grid is a CSS Grid or Flex?
+        // style.css: .schedule-grid { display: grid; grid-template-columns: ... }
+        // .machine-column contains headers and slots.
+        // We need to be careful. The indicator line must span across all columns.
+        // If we append it to #scheduleGrid, does it span full width? Yes if width:100%.
+
+        // Y Position:
+        // header height + (minutes / 30) * slotHeight.
+        // But headers might vary? Assuming consistent.
+
+        const header = grid.querySelector('.machine-header');
+        const headerHeight = header ? header.offsetHeight : 0;
+        const slotHeight = firstSlot.offsetHeight; // Height of one 30-min block
+
+        const pixelsPerMinute = slotHeight / 30;
+        const topPos = headerHeight + (currentMinutes * pixelsPerMinute);
+
+        indicator.style.top = `${topPos}px`;
+        indicator.style.display = 'block';
     },
 
     showPhoneModal(booking) {
