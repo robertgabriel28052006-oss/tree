@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----- REZERVARI -----
+    // Citire = toată lumea (orar, listă). Creare = oricine (rezervare).
+    // Ștergere = oricine (în app se verifică PIN-ul prin hash; admin șterge fără PIN).
+    match /rezervari/{bookingId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // ----- SLOTS_LOCK (blocaje la rezervare) -----
+    match /slots_lock/{slotId} {
+      allow read, write: if true;
+    }
+
+    // ----- SETTINGS (ex: appState = mentenanță) -----
+    // Citire = toată lumea. Scriere = DOAR utilizatori autentificați (admin).
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
