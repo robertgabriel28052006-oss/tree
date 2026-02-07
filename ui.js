@@ -788,7 +788,7 @@ export const ui = {
 
     async performDelete(id, isAdminDelete = false) {
         if (!id) return;
-        if (isAdminDelete && (!auth || !auth.currentUser)) return;
+        if (isAdminDelete && (!firebaseService.auth || !firebaseService.auth.currentUser)) return;
         
         // Disable buttons if possible
         const btnAdmin = document.querySelector('.btn-delete-vip'); // Rough selection
