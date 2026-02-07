@@ -853,13 +853,27 @@ const ui = {
         const copyBtn = document.getElementById('copyPhoneBtn');
         
         // Telefon vizibil pentru toată lumea
-        phoneEl.textContent = booking.phoneNumber; 
-        callBtn.style.display = 'inline-block';
-        copyBtn.style.display = 'inline-block';
-        callBtn.href = `tel:${booking.phoneNumber}`; 
-        copyBtn.onclick = () => { 
-            navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); }); 
-        };
+        if (booking.phoneNumber === '-' || booking.phoneNumber === 'Nu este necesar') {
+            phoneEl.textContent = "Numărul de telefon se află pe foaia oficială din spălătorie.";
+            phoneEl.style.fontStyle = 'italic';
+            phoneEl.style.fontSize = '0.9rem';
+            phoneEl.style.color = 'var(--text-muted)';
+            
+            callBtn.style.display = 'none';
+            copyBtn.style.display = 'none';
+        } else {
+            phoneEl.textContent = booking.phoneNumber; 
+            phoneEl.style.fontStyle = 'normal';
+            phoneEl.style.fontSize = '';
+            phoneEl.style.color = '';
+
+            callBtn.style.display = 'inline-block';
+            copyBtn.style.display = 'inline-block';
+            callBtn.href = `tel:${booking.phoneNumber}`; 
+            copyBtn.onclick = () => { 
+                navigator.clipboard.writeText(booking.phoneNumber).then(() => { utils.showToast('Număr copiat!'); }); 
+            };
+        }
 
         document.getElementById('adminModal').style.display = 'none'; 
         document.getElementById('confirmModal').style.display = 'none';
