@@ -370,6 +370,21 @@ const ui = {
             });
         }
 
+        const skipPhoneCheck = document.getElementById('skipPhone');
+        if (skipPhoneCheck && phoneInput) {
+            skipPhoneCheck.addEventListener('change', () => {
+                if (skipPhoneCheck.checked) {
+                    phoneInput.value = '';
+                    phoneInput.disabled = true;
+                    phoneInput.style.borderColor = '';
+                    phoneInput.placeholder = "Nu este necesar";
+                } else {
+                    phoneInput.disabled = false;
+                    phoneInput.placeholder = "07xx xxx xxx";
+                }
+            });
+        }
+
         // Visual Selector
         document.querySelectorAll('.selector-card').forEach(card => {
             card.onclick = () => {
@@ -648,10 +663,15 @@ const ui = {
             if (userName.length < 3) throw new Error("Introdu un nume complet (minim 3 litere).");
 
             userName = utils.capitalize(userName);
-            const cleanPhone = phone.replace(/\D/g, '');
+            let cleanPhone = phone.replace(/\D/g, '');
+            const skipPhone = document.getElementById('skipPhone').checked;
 
-            if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) { 
-                throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
+            if (skipPhone) {
+                cleanPhone = "-";
+            } else {
+                if (cleanPhone.length !== 10 || !cleanPhone.startsWith('07')) { 
+                    throw new Error("Număr invalid! Trebuie 10 cifre și să înceapă cu 07.");
+                }
             }
 
             if (!pin || pin.length !== 4 || isNaN(pin)) {
