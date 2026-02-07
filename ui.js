@@ -1,7 +1,6 @@
 import { utils } from './utils.js';
 import { logic } from './logic.js';
 import { firebaseService } from './firebase-service.js';
-import { LOCK_EXPIRATION_MS } from './config.js';
 
 let localBookings = [];
 let historyBookings = []; 
@@ -75,7 +74,6 @@ export const ui = {
         const q = firebaseService.query(
             firebaseService.bookingsCollection, 
             firebaseService.where("date", ">=", yesterday), 
-            firebaseService.where("date", "<=", nextWeek),
             firebaseService.orderBy("date"), 
             firebaseService.orderBy("startTime")
         );
@@ -551,32 +549,16 @@ export const ui = {
             // Tranzacție
             await firebaseService.runTransaction(firebaseService.db, async (transaction) => {
                 const slotID = `${this.currentDate}_${machine}_${start}`;
-                const slotRef = firebaseService.doc(firebaseService.db, "slots_lock", slotID); 
+                const bookingRef = firebaseService.doc(firebaseService.bookingsCollection, slotID);
                 
-                const slotDoc = await transaction.get(slotRef);
-                if (slotDoc.exists()) {
-                    const data = slotDoc.data();
-                    const lockedTime = new Date(data.lockedAt).getTime();
-                    const now = new Date().getTime();
-                    const diff = now - lockedTime;
-                    
-                    // Expire lock after 5 minutes (300000 ms)
-                    if (diff < LOCK_EXPIRATION_MS) {
-                        throw "Cineva a rezervat acest slot chiar acum!";
-                    }
-                    // If expired, we proceed to overwrite it.
+                const bookingDoc = await transaction.get(bookingRef);
+                if (bookingDoc.exists()) {
+                    throw "Intervalul este deja rezervat!";
                 }
-                
-                transaction.set(slotRef, { 
-                    lockedAt: new Date().toISOString(),
-                    machine,
-                    date: this.currentDate,
-                    start
-                });
 
                 const pinHash = await utils.hashPin(pin);
-                const newBookingRef = firebaseService.doc(firebaseService.bookingsCollection);
-                transaction.set(newBookingRef, { 
+                
+                transaction.set(bookingRef, { 
                     userName, 
                     phoneNumber: cleanPhone, 
                     pinHash,
@@ -587,6 +569,7 @@ export const ui = {
                     createdAt: new Date().toISOString() 
                 });
             });
+
 
             // Salvare locală (Ține-mă minte)
             localStorage.setItem('studentName', userName);
