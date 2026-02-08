@@ -3,8 +3,8 @@
 export const MACHINES = { 
     'masina1': 'Mașină Spălat 1', 
     'masina2': 'Mașină Spălat 2', 
-    'uscator1': 'Uscător 1', 
-    'uscator2': 'Uscător 2' 
+    'uscator1': 'Uscător Jos',
+    'uscator2': 'Uscător Sus'
 };
 
 export const FIREBASE_CONFIG = {
