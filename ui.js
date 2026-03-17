@@ -592,7 +592,7 @@ export const ui = {
             localStorage.setItem('studentName', userName);
             localStorage.setItem('studentPhone', cleanPhone);
 
-            firebaseService.logEvent(analytics, 'rezervare_noua', {
+            firebaseService.logEvent(firebaseService.analytics, 'rezervare_noua', {
                 masina: machine,
                 durata: duration
             });
@@ -691,6 +691,11 @@ export const ui = {
                         document.getElementById('machineType').value = machineKey; 
                         document.getElementById('duration').value = "60"; 
                         document.getElementById('startTime').value = slot; 
+
+                        // Fix: sincronizează și selector-ul vizual
+                        document.querySelectorAll('.selector-card').forEach(c => c.classList.remove('selected'));
+                        const card = document.querySelector(`.selector-card[data-value="${machineKey}"]`);
+                        if (card) card.classList.add('selected');
                         
                         document.querySelector('.booking-card').scrollIntoView({behavior: 'smooth', block: 'center'}); 
                         document.querySelector('.booking-card').classList.add('highlight-pulse'); 
@@ -863,7 +868,7 @@ export const ui = {
         const container = document.getElementById('myBookings'); 
         const currentUser = document.getElementById('userName').value.trim().toLowerCase(); 
         if (!currentUser) { container.innerHTML = `<div class="empty-state">${i18n.t("enter_name_to_see_bookings")}</div>`; return; } 
-        const bookings = localBookings.filter(b => b.userName.toLowerCase().includes(currentUser)).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)); 
+        const bookings = localBookings.filter(b => b.userName.toLowerCase().startsWith(currentUser)).sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime)); 
         container.innerHTML = bookings.length ? bookings.map(b => {
              const endMins = utils.timeToMins(b.startTime) + parseInt(b.duration);
              const endTime = utils.minsToTime(endMins);
