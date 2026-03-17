@@ -270,11 +270,21 @@ input:checked + .slider:before { transform: translateX(24px); }
 
 /* Responsive */
 @media (max-width: 1024px) { .main-layout { grid-template-columns: 1fr; } .sidebar { display: grid; grid-template-columns: 1fr 1fr; } .booking-card { grid-column: 1 / -1; } }
-@media (max-width: 768px) { .sidebar { display: flex; flex-direction: column; } }
+@media (max-width: 768px) { 
+    .sidebar { display: flex; flex-direction: column; }
+    .main-header { padding: 15px; }
+    .app-container { padding: 10px; }
+}
 
 /* Fix mobil data/durata */
 @media (max-width: 500px) {
     .form-row { grid-template-columns: 1fr; gap: 15px; }
+    .modal-box { padding: 15px; width: 95%; }
+    .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+    #phoneModal .modal-actions { grid-template-columns: 1fr !important; display: flex; flex-direction: column; }
+    .btn-action { width: 100%; }
+    .schedule-header { flex-direction: column; gap: 10px; }
+    .visual-selector { grid-template-columns: 1fr; }
 }
 
 @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.7); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
@@ -695,7 +705,8 @@ body.dark-mode .version-tag {
 }
 
 @media (max-width: 480px) {
-    .version-tag {
-        display: none; /* Hide on very small screens if needed, or adjust */
-    }
+    .header-content { flex-direction: column; gap: 15px; }
+    .header-actions { width: 100%; justify-content: center; flex-wrap: wrap; }
+    .logo-area { width: 100%; justify-content: center; text-align: center; }
+    .version-tag { margin-right: 0; }
 }
