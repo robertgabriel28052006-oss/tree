@@ -37,7 +37,7 @@ body.dark-mode .spinner { border-color: #334155; border-top-color: var(--primary
 /* ECRAN MENTENANTA */
 .maintenance-screen {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.98); 
+    background: rgba(255, 255, 255, 0.98);
     z-index: 2000; /* Sub modale (3000) */
     display: flex; justify-content: center; align-items: center; text-align: center;
     backdrop-filter: blur(5px);
@@ -102,8 +102,8 @@ form { padding: 20px; }
 label { font-size: 0.85rem; font-weight: 500; margin-bottom: 5px; display: block; }
 .input-wrapper { position: relative; display: flex; align-items: center; }
 .input-wrapper i { position: absolute; left: 12px; color: var(--text-muted); font-size: 0.9rem; }
-input, select { 
-    width: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--border); 
+input, select {
+    width: 100%; padding: 10px 10px 10px 35px; border: 1px solid var(--border);
     border-radius: 8px; font-size: 0.95rem; background: var(--card-bg); color: var(--text-main); transition: border 0.2s;
 }
 input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
@@ -224,17 +224,17 @@ body.dark-mode .btn-delete:hover { background: #991b1b; }
 .history-loading { font-style: normal; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; }
 
 /* MODALS */
-.modal-overlay { 
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+.modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 3000; /* Peste mentenanta */
-    justify-content: center; align-items: center; backdrop-filter: blur(3px); 
+    justify-content: center; align-items: center; backdrop-filter: blur(3px);
 }
 
 /* Stil general pentru modale */
-.modal-box { 
-    background: var(--card-bg); padding: 25px; border-radius: var(--radius); 
-    width: 90%; max-width: 360px; position: relative; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease; 
+.modal-box {
+    background: var(--card-bg); padding: 25px; border-radius: var(--radius);
+    width: 90%; max-width: 360px; position: relative;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideUp 0.3s ease;
 }
 
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -270,11 +270,21 @@ input:checked + .slider:before { transform: translateX(24px); }
 
 /* Responsive */
 @media (max-width: 1024px) { .main-layout { grid-template-columns: 1fr; } .sidebar { display: grid; grid-template-columns: 1fr 1fr; } .booking-card { grid-column: 1 / -1; } }
-@media (max-width: 768px) { .sidebar { display: flex; flex-direction: column; } }
+@media (max-width: 768px) {
+    .sidebar { display: flex; flex-direction: column; }
+    .main-header { padding: 15px; }
+    .app-container { padding: 10px; }
+}
 
 /* Fix mobil data/durata */
 @media (max-width: 500px) {
     .form-row { grid-template-columns: 1fr; gap: 15px; }
+    .modal-box { padding: 15px; width: 95%; }
+    .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+    #phoneModal .modal-actions { grid-template-columns: 1fr !important; display: flex; flex-direction: column; }
+    .btn-action { width: 100%; }
+    .schedule-header { flex-direction: column; gap: 10px; }
+    .visual-selector { grid-template-columns: 1fr; }
 }
 
 @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.7); } 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); } }
@@ -339,7 +349,7 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
-    width: 40px; 
+    width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
@@ -531,10 +541,10 @@ body.dark-mode .selected-slot { background-color: #1e3a8a !important; color: whi
     width: 6px;
 }
 .admin-bookings-list::-webkit-scrollbar-track {
-    background: #1e293b; 
+    background: #1e293b;
 }
 .admin-bookings-list::-webkit-scrollbar-thumb {
-    background: #475569; 
+    background: #475569;
     border-radius: 3px;
 }
 
@@ -695,7 +705,8 @@ body.dark-mode .version-tag {
 }
 
 @media (max-width: 480px) {
-    .version-tag {
-        display: none; /* Hide on very small screens if needed, or adjust */
-    }
+    .header-content { flex-direction: column; gap: 15px; }
+    .header-actions { width: 100%; justify-content: center; flex-wrap: wrap; }
+    .logo-area { width: 100%; justify-content: center; text-align: center; }
+    .version-tag { margin-right: 0; }
 }
